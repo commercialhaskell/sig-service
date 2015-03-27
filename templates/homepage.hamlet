@@ -1,0 +1,11 @@
+<div .container>
+    <div .span12>
+        <div .row>
+            <h1>sig-service
+            <p>
+              This is the service run for submitting package signatures to
+              <a href="https://github.com/commercialhaskell/sig-archive">sig-archive</a>
+              using the tool
+              <a href="https://github.com/commercialhaskell/sig-tool">sig-tool</a>.
+            <p>
+                <a href="https://github.com/commercialhaskell/sig-service">Source on Github</a>
