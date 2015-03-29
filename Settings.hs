@@ -62,11 +62,17 @@ widgetFile = (if development then widgetFileReload
               widgetFileSettings
 
 data Extra = Extra
-    { extraCopyright :: Text
+    { extraCopyright :: Text       -- ^ Copyright of web site.
     , extraAnalytics :: Maybe Text -- ^ Google Analytics
+    , extraPullMinutes :: Int      -- ^ How often to pull from the Git repo.
+    , extraRepoUrl :: String       -- ^ URL of sig-archive.
+    , extraRepoName :: String      -- ^ Name of directory in which to clone sig-archive.
     } deriving Show
 
 parseExtra :: DefaultEnv -> Object -> Parser Extra
 parseExtra _ o = Extra
     <$> o .:  "copyright"
     <*> o .:? "analytics"
+    <*> o .: "pull-minutes"
+    <*> o .: "repo-url"
+    <*> o .: "repo-name"

@@ -3,7 +3,9 @@ Default: &defaults
   port: 3000
   approot: "http://localhost:3000"
   copyright: Insert copyright statement here
-  #analytics: UA-YOURCODE
+  pull-minutes: 30
+  repo-url: git@github.com:commercialhaskell/sig-archive.git
+  repo-name: sig-archive
 
 Development:
   <<: *defaults

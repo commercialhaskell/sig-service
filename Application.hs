@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Application
     ( makeApplication
@@ -5,13 +6,15 @@ module Application
     , makeFoundation
     ) where
 
+import           Control.Concurrent
+import           Control.Monad
+import           Control.Monad.Logger
 import           Data.Default (def)
 import qualified Git
 import           Import
 import           Network.HTTP.Client.Conduit (newManager)
 import           Network.Wai.Logger (clockDateCacher)
 import           Network.Wai.Middleware.RequestLogger ( mkRequestLogger, outputFormat, OutputFormat (..), IPAddrSource (..), destination)
-import Control.Monad.Logger
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
 import           System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize)
 import           Yesod.Core.Types (loggerSet, Logger (Logger))
@@ -50,14 +53,22 @@ makeApplication conf =
            messageLoggerSource foundation
                                (appLogger foundation)
      -- Clone sig-archive
-     runLoggingT (Git.clone "git@github.com:commercialhaskell/sig-archive.git" "sig-archive")
+     let git = appGit foundation
+         Extra {..} = (appExtra (settings foundation))
+     runLoggingT (Git.clone git extraRepoUrl extraRepoName)
                  logFunc
+     -- Pull from sig-archive every 30 minutes
+     void (forkIO (runLoggingT
+                     (do liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
+                         Git.pull git extraRepoName True)
+                     logFunc))
      return (logWare $ defaultMiddlewaresNoLogging app,logFunc)
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
 makeFoundation :: AppConfig DefaultEnv Extra -> IO App
 makeFoundation conf = do
+    git <- Git.newGit
     manager <- newManager
     s <- staticSite
 
@@ -65,7 +76,7 @@ makeFoundation conf = do
     (getter, _) <- clockDateCacher
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
-        foundation = App conf s manager logger
+        foundation = App conf s manager logger git
 
     return foundation
 
