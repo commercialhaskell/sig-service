@@ -55,12 +55,12 @@ makeApplication conf =
      -- Clone sig-archive
      let git = appGit foundation
          Extra {..} = (appExtra (settings foundation))
-     runLoggingT (Git.clone git extraRepoUrl extraRepoName)
+     runLoggingT (Git.clone git extraRepoUrl extraRepoPath)
                  logFunc
      -- Pull from sig-archive every 30 minutes
      void (forkIO (runLoggingT
                      (do liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
-                         Git.pull git extraRepoName True)
+                         Git.pull git extraRepoPath True)
                      logFunc))
      return (logWare $ defaultMiddlewaresNoLogging app,logFunc)
 

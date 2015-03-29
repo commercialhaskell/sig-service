@@ -19,6 +19,7 @@ library
                      Settings.StaticFiles
                      Settings.Development
                      Handler.Home
+                     Git
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -40,13 +41,16 @@ library
                 NoMonomorphismRestriction
                 DeriveDataTypeable
 
-    build-depends: aeson                         >= 0.6
+    build-depends: Cabal >= 1.18.1.5
+                 , aeson                         >= 0.6
                  , base                          >= 4          && < 5
                  , bytestring                    >= 0.9
                  , conduit                       >= 1.0
                  , conduit-extra >= 1.1.7.1
+                 , containers >= 0.5.5.1
                  , data-default
                  , directory                     >= 1.1
+                 , email-validate >= 2.0.1
                  , exceptions >= 0.8.0.2
                  , fast-logger                   >= 2.2
                  , hjsmin                        >= 0.1

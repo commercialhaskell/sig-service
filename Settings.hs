@@ -66,7 +66,7 @@ data Extra = Extra
     , extraAnalytics :: Maybe Text -- ^ Google Analytics
     , extraPullMinutes :: Int      -- ^ How often to pull from the Git repo.
     , extraRepoUrl :: String       -- ^ URL of sig-archive.
-    , extraRepoName :: String      -- ^ Name of directory in which to clone sig-archive.
+    , extraRepoPath :: String      -- ^ Path of directory in which to clone sig-archive.
     } deriving Show
 
 parseExtra :: DefaultEnv -> Object -> Parser Extra
@@ -75,4 +75,4 @@ parseExtra _ o = Extra
     <*> o .:? "analytics"
     <*> o .: "pull-minutes"
     <*> o .: "repo-url"
-    <*> o .: "repo-name"
+    <*> o .: "repo-path"

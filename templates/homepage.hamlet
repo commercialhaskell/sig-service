@@ -9,3 +9,35 @@
               <a href="https://github.com/commercialhaskell/sig-tool">sig-tool</a>.
             <p>
                 <a href="https://github.com/commercialhaskell/sig-service">Source on Github</a>
+        <div .row>
+          <h2 #mappings>
+            <a href="#mappings">Mappings
+          $forall (fp,mapping) <- M.toList (archiveMappings archive)
+            <h3 id="mapping-#{fp}">
+              <a href="#mapping-#{fp}">
+                  #{fp}
+            <dl>
+                $forall (signer,pkgs) <- M.toList (mappingSigners mapping)
+                   <dt id="signer-#{fingerprintSample (signerFingerprint signer)}">
+                       <a href="#signer-#{fingerprintSample (signerFingerprint signer)}">
+                           #{decodeUtf8 (toByteString (signerEmail signer))}
+                   <dd>
+                       #{fingerprintSample (signerFingerprint signer)}
+                       <ul>
+                           $forall pkg <- pkgs
+                               <li>#{display pkg}
+
+        <div .row>
+            <h2 #signatures>
+              <a href="#signatures">Signatures
+            <table .table>
+                <thead>
+                  <th>Release
+                  <th>Signatures
+                <tbody>
+                  $forall (pkg,sigs) <- M.toList (archiveSignatures archive)
+                    <tr>
+                       <td>
+                         #{display pkg}
+                       <td>
+                         #{show (S.size sigs)}
