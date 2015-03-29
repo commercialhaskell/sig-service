@@ -5,23 +5,23 @@ module Application
     , makeFoundation
     ) where
 
-import Import
-import Yesod.Default.Config
-import Yesod.Default.Main
-import Yesod.Default.Handlers
-import Network.Wai.Middleware.RequestLogger
-    ( mkRequestLogger, outputFormat, OutputFormat (..), IPAddrSource (..), destination
-    )
+import           Data.Default (def)
+import qualified Git
+import           Import
+import           Network.HTTP.Client.Conduit (newManager)
+import           Network.Wai.Logger (clockDateCacher)
+import           Network.Wai.Middleware.RequestLogger ( mkRequestLogger, outputFormat, OutputFormat (..), IPAddrSource (..), destination)
+import Control.Monad.Logger
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
-import Network.HTTP.Client.Conduit (newManager)
-import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize)
-import Network.Wai.Logger (clockDateCacher)
-import Data.Default (def)
-import Yesod.Core.Types (loggerSet, Logger (Logger))
+import           System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize)
+import           Yesod.Core.Types (loggerSet, Logger (Logger))
+import           Yesod.Default.Config
+import           Yesod.Default.Handlers
+import           Yesod.Default.Main
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
-import Handler.Home
+import           Handler.Home
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -33,22 +33,26 @@ mkYesodDispatch "App" resourcesApp
 -- place to put your migrate statements to have automatic database
 -- migrations handled by Yesod.
 makeApplication :: AppConfig DefaultEnv Extra -> IO (Application, LogFunc)
-makeApplication conf = do
-    foundation <- makeFoundation conf
-
-    -- Initialize the logging middleware
-    logWare <- mkRequestLogger def
-        { outputFormat =
-            if development
-                then Detailed True
-                else Apache FromSocket
-        , destination = RequestLogger.Logger $ loggerSet $ appLogger foundation
-        }
-
-    -- Create the WAI application and apply middlewares
-    app <- toWaiAppPlain foundation
-    let logFunc = messageLoggerSource foundation (appLogger foundation)
-    return (logWare $ defaultMiddlewaresNoLogging app, logFunc)
+makeApplication conf =
+  do foundation <- makeFoundation conf
+     -- Initialize the logging middleware
+     logWare <-
+       mkRequestLogger
+         def {outputFormat =
+                if development
+                   then Detailed True
+                   else Apache FromSocket
+             ,destination = RequestLogger.Logger $ loggerSet $
+                                                   appLogger foundation}
+     -- Create the WAI application and apply middlewares
+     app <- toWaiAppPlain foundation
+     let logFunc =
+           messageLoggerSource foundation
+                               (appLogger foundation)
+     -- Clone sig-archive
+     runLoggingT (Git.clone "git@github.com:commercialhaskell/sig-archive.git" "sig-archive")
+                 logFunc
+     return (logWare $ defaultMiddlewaresNoLogging app,logFunc)
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
