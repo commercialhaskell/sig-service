@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Application
     ( makeApplication
@@ -6,9 +7,11 @@ module Application
     , makeFoundation
     ) where
 
-import           Control.Concurrent
+import           Control.Concurrent (forkIO)
+import           Control.Concurrent.Lifted
 import           Control.Monad
 import           Control.Monad.Logger
+import           Control.Monad.Trans.Reader
 import           Data.Default (def)
 import qualified Git
 import           Import
@@ -16,7 +19,9 @@ import           Network.HTTP.Client.Conduit (newManager)
 import           Network.Wai.Logger (clockDateCacher)
 import           Network.Wai.Middleware.RequestLogger ( mkRequestLogger, outputFormat, OutputFormat (..), IPAddrSource (..), destination)
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
+import           System.Directory
 import           System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize)
+import           Yesod.Caching
 import           Yesod.Core.Types (loggerSet, Logger (Logger))
 import           Yesod.Default.Config
 import           Yesod.Default.Handlers
@@ -56,14 +61,20 @@ makeApplication conf =
                                (appLogger foundation)
      -- Clone sig-archive
      let git = appGit foundation
-         Extra {..} = (appExtra (settings foundation))
+         Extra{..} =
+           (appExtra (settings foundation))
      runLoggingT (Git.clone git extraRepoUrl extraRepoPath)
                  logFunc
      -- Pull from sig-archive every 30 minutes
-     void (forkIO (runLoggingT
-                     (do liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
-                         Git.pull git extraRepoPath True)
-                     logFunc))
+     void
+       (forkIO (runReaderT
+                  (runLoggingT
+                     (do liftIO (threadDelay
+                                   (1000 * 1000 * 60 * extraPullMinutes))
+                         Git.pull git extraRepoPath True
+                         lift (invalidate [HomePageC,ArchiveDownloadC]))
+                     logFunc)
+                  (appCacheDir foundation)))
      return (logWare $ defaultMiddlewaresNoLogging app,logFunc)
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
@@ -76,9 +87,11 @@ makeFoundation conf = do
 
     loggerSet' <- newStdoutLoggerSet defaultBufSize
     (getter, _) <- clockDateCacher
+    cache <- newMVar (extraCacheDir (appExtra conf))
+    createDirectoryIfMissing True (extraCacheDir (appExtra conf))
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
-        foundation = App conf s manager logger git
+        foundation = App conf s manager logger git cache
 
     return foundation
 

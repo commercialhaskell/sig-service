@@ -6,6 +6,7 @@ Default: &defaults
   pull-minutes: 30
   repo-url: git@github.com:commercialhaskell/sig-archive.git
   repo-path: sig-archive
+  cache-dir: /tmp/sig-archive-cache
 
 Development:
   <<: *defaults

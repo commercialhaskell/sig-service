@@ -67,6 +67,7 @@ data Extra = Extra
     , extraPullMinutes :: Int      -- ^ How often to pull from the Git repo.
     , extraRepoUrl :: String       -- ^ URL of sig-archive.
     , extraRepoPath :: String      -- ^ Path of directory in which to clone sig-archive.
+    , extraCacheDir :: FilePath    -- ^ Directory of cache files.
     } deriving Show
 
 parseExtra :: DefaultEnv -> Object -> Parser Extra
@@ -76,3 +77,4 @@ parseExtra _ o = Extra
     <*> o .: "pull-minutes"
     <*> o .: "repo-url"
     <*> o .: "repo-path"
+    <*> o .: "cache-dir"

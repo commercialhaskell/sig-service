@@ -1,5 +1,11 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Foundation where
 
+import           Control.Concurrent.MVar.Lifted
+import           Data.Proxy
 import           Git
 import           Network.HTTP.Client.Conduit (Manager, HasHttpManager (getHttpManager))
 import           Prelude
@@ -10,9 +16,11 @@ import           Settings.StaticFiles
 import           Text.Hamlet (hamletFile)
 import           Text.Jasmine (minifym)
 import           Yesod
+import           Yesod.Caching
 import           Yesod.Core.Types (Logger)
 import           Yesod.Default.Config
 import           Yesod.Default.Util (addStaticContentExternal)
+import           Yesod.Slug
 import           Yesod.Static
 
 -- | The site argument for your application. This can be a good place to
@@ -25,6 +33,7 @@ data App = App
     , httpManager :: Manager
     , appLogger :: Logger
     , appGit :: Git
+    , appCacheDir :: MVar FilePath
     }
 
 instance HasHttpManager App where
@@ -122,3 +131,32 @@ getExtra = fmap (appExtra . settings) getYesod
 -- wiki:
 --
 -- https://github.com/yesodweb/yesod/wiki/Sending-email
+
+newtype TarContent a = TarContent a
+
+instance ToContent a => ToContent (TarContent a) where
+  toContent (TarContent a) = toContent a
+
+instance (ToContent a) => ToTypedContent (TarContent a) where
+  toTypedContent tar@(TarContent a) =
+    TypedContent (getContentType (return tar :: Proxy (TarContent a)))
+                 (toContent a)
+
+instance ToContent a => HasContentType (TarContent a) where
+  getContentType _ = "application/x-tar"
+
+-- Caching settings
+--
+
+data CacheKey
+  = ArchiveDownloadC
+  | HomePageC
+
+instance Slug CacheKey where
+  toSlug ArchiveDownloadC = "archive-download"
+  toSlug HomePageC        = "home-page"
+
+instance MonadCaching Handler where
+  withCacheDir cont =
+    do dirVar <- fmap appCacheDir getYesod
+       withMVar dirVar cont
