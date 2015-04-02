@@ -4,3 +4,6 @@
 /robots.txt RobotsR GET
 
 / HomeR GET
+
+/upload/signature UploadSigR POST
+/download/archive DownloadArchiveR GET
