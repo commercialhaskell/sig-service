@@ -5,8 +5,8 @@
 
 module Yesod.Caching
   (MonadCaching(..)
-  ,caching
-  ,invalidate)
+  ,invalidate
+  ,defaultCaching)
   where
 
 import           Blaze.ByteString.Builder
@@ -29,30 +29,29 @@ import           Yesod.Slug
 -- | Monad which contains a cache directory to which things can be
 -- read and wrote. The 'withCacheDir' may implement a mutual exclusion
 -- on this resource.
+--
 class (MonadIO m,MonadBaseControl IO m) => MonadCaching m where
+  -- Run the given action with the given caching directory.
   withCacheDir :: (FilePath -> m a) -> m a
+  {-# MINIMAL withCacheDir #-}
+  -- | With the given key run the given action, caching any content
+  -- builders.
+  --
+  -- Default implementation is 'defaultCaching'.
+  caching :: (Slug key,HasContentType content,MonadCaching m)
+          => key -> m content -> m TypedContent
+  caching = defaultCaching
 
 instance (MonadBaseControl IO m,MonadIO m) => MonadCaching (ReaderT (MVar FilePath) m) where
   withCacheDir cont =
     do dirVar <- ask
        withMVar dirVar cont
 
--- | Invalidate (i.e. delete) a cache key.
-invalidate :: (Slug key,MonadCaching m) => [key] -> m ()
-invalidate keys =
-  withCacheDir
-    (\dir ->
-       liftIO (mapM_ (\key ->
-                        removeFile
-                          (dir </>
-                           T.unpack (toSlug key)))
-                     keys))
-
 -- | With the given key run the given action, caching any content
 -- builders.
-caching :: (Slug key,HasContentType content,MonadCaching m)
-        => key -> m content -> m TypedContent
-caching key handler =
+defaultCaching :: (Slug key,HasContentType content,MonadCaching m)
+               => key -> m content -> m TypedContent
+defaultCaching key handler =
   withCacheDir
     (\dir ->
        do let fp =
@@ -65,6 +64,17 @@ caching key handler =
              else do candidate <-
                        liftM toContent handler
                      invalidated handler fp candidate)
+
+-- | Invalidate (i.e. delete) a cache key.
+invalidate :: (Slug key,MonadCaching m) => [key] -> m ()
+invalidate keys =
+  withCacheDir
+    (\dir ->
+       liftIO (mapM_ (\key ->
+                        removeFile
+                          (dir </>
+                           T.unpack (toSlug key)))
+                     keys))
 
 -- | Cache is non-existent or invalidated, time to run the user action
 -- and store the result.

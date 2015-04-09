@@ -157,6 +157,10 @@ instance Slug CacheKey where
   toSlug HomePageC        = "home-page"
 
 instance MonadCaching Handler where
+  caching =
+    if development
+       then const (fmap toTypedContent)
+       else defaultCaching
   withCacheDir cont =
     do dirVar <- fmap appCacheDir getYesod
        withMVar dirVar cont
