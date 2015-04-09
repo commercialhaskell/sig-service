@@ -18,12 +18,9 @@ import           Settings.StaticFiles
 import           Text.Hamlet (hamletFile)
 import           Text.Jasmine (minifym)
 import           Yesod
-import           Yesod.Caching
-import           Yesod.Caching.Filesystem
 import           Yesod.Core.Types (Logger)
 import           Yesod.Default.Config
 import           Yesod.Default.Util (addStaticContentExternal)
-import           Yesod.Slug
 import           Yesod.Static
 
 -- | The site argument for your application. This can be a good place to
@@ -147,28 +144,3 @@ instance (ToContent a) => ToTypedContent (TarContent a) where
 
 instance ToContent a => HasContentType (TarContent a) where
   getContentType _ = "application/x-tar"
-
--- Caching settings
---
-
-data CacheKey
-  = ArchiveDownloadC
-  | HomePageC
-
-instance Slug CacheKey where
-  toSlug ArchiveDownloadC = "archive-download"
-  toSlug HomePageC        = "home-page"
-
-instance MonadCaching Handler where
-  type Cache Handler = FilePath
-  withCache cont =
-    do dirVar <- fmap appCacheDir getYesod
-       withMVar dirVar cont
-  caching =
-    if development
-       then const (fmap toTypedContent)
-       else filesystemCaching withCache
-  invalidate =
-    if development
-       then const (return ())
-       else filesystemInvalidate withCache

@@ -13,7 +13,6 @@ import           Control.Concurrent (forkIO)
 import           Control.Concurrent.Lifted
 import           Control.Monad
 import           Control.Monad.Logger
-import           Control.Monad.Trans.Reader
 import           Data.Default (def)
 import qualified Git
 import           Import
@@ -23,7 +22,6 @@ import           Network.Wai.Middleware.RequestLogger ( mkRequestLogger, outputF
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
 import           System.Directory
 import           System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize)
-import           Yesod.Caching
 import           Yesod.Core.Types (loggerSet, Logger (Logger))
 import           Yesod.Default.Config
 import           Yesod.Default.Handlers
@@ -69,14 +67,11 @@ makeApplication conf =
                  logFunc
      -- Pull from sig-archive every 30 minutes
      void
-       (forkIO (runReaderT
-                  (runLoggingT
-                     (do liftIO (threadDelay
-                                   (1000 * 1000 * 60 * extraPullMinutes))
-                         Git.pull git extraRepoPath True
-                         lift (invalidate [HomePageC,ArchiveDownloadC]))
-                     logFunc)
-                  (appCacheDir foundation)))
+       (forkIO (runLoggingT
+                  (do liftIO (threadDelay
+                                (1000 * 1000 * 60 * extraPullMinutes))
+                      Git.pull git extraRepoPath True)
+                  logFunc))
      return (logWare $ defaultMiddlewaresNoLogging app,logFunc)
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
