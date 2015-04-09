@@ -17,6 +17,7 @@ import           Text.Hamlet (hamletFile)
 import           Text.Jasmine (minifym)
 import           Yesod
 import           Yesod.Caching
+import           Yesod.Caching.Filesystem
 import           Yesod.Core.Types (Logger)
 import           Yesod.Default.Config
 import           Yesod.Default.Util (addStaticContentExternal)
@@ -157,10 +158,15 @@ instance Slug CacheKey where
   toSlug HomePageC        = "home-page"
 
 instance MonadCaching Handler where
+  type Cache Handler = FilePath
+  withCache cont =
+    do dirVar <- fmap appCacheDir getYesod
+       withMVar dirVar cont
   caching =
     if development
        then const (fmap toTypedContent)
-       else defaultCaching
-  withCacheDir cont =
-    do dirVar <- fmap appCacheDir getYesod
-       withMVar dirVar cont
+       else filesystemCaching withCache
+  invalidate =
+    if development
+       then const (return ())
+       else filesystemInvalidate withCache

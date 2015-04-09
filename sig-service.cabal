@@ -22,6 +22,7 @@ library
                      Handler.UploadSig
                      Handler.DownloadArchive
                      Yesod.Caching
+                     Yesod.Caching.Filesystem
                      Git
 
     if flag(dev) || flag(library-only)
