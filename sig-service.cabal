@@ -71,7 +71,6 @@ library
                  , monad-logger   >= 0.3
                  , process
                  , resourcet      >= 1.1.4.1
-                 , resourcet      >= 1.1.4.1
                  , shakespeare    >= 2.0
                  , sig-tool
                  , template-haskell

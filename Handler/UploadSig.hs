@@ -4,17 +4,17 @@
 
 module Handler.UploadSig where
 
-import Data.ByteString.Base16
-import Crypto.Hash.SHA256
-import Data.Time.ISO8601
-import Data.Time
 import           Control.Monad.Trans.Resource (runResourceT)
+import           Crypto.Hash.SHA256
+import           Data.ByteString.Base16
+import qualified Data.ByteString.Char8 as Ch
+import qualified Data.ByteString.Lazy as LB
 import           Data.Conduit
+import qualified Data.Conduit.Binary as C
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.ByteString.Lazy as LB
-import qualified Data.ByteString.Char8 as Ch
-import qualified Data.Conduit.Binary as C
+import           Data.Time
+import           Data.Time.ISO8601
 import           Import
 import           Network.Wai.Conduit (sourceRequestBody)
 import           Sig.Defaults
