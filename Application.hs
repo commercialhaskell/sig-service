@@ -1,6 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Application
     ( makeApplication
     , getApplicationDev

@@ -5,5 +5,5 @@
 
 / HomeR GET
 
-/upload/signature UploadSigR POST
+/upload/signature/#Text/#Text/#Text UploadSigR PUT
 /download/archive DownloadArchiveR GET
