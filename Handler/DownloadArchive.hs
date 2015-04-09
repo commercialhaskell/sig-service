@@ -16,17 +16,17 @@ getDownloadArchiveR =
   do extra <- getExtra
      tmp <- liftIO getTemporaryDirectory
      let outTarGz = tmp ++ "/sig-archive.tar.gz"
-     void (liftIO (fmap waitForProcess
-                        (runProcess
-                           "git"
-                           ["archive"
-                           ,"--prefix=sig-archive/"
-                           ,"--format=tar.gz"
-                           ,"--output=" <> outTarGz
-                           ,"HEAD"]
-                           (Just $ extraRepoPath extra)
-                           Nothing
-                           Nothing
-                           Nothing
-                           Nothing)))
+     liftIO (void (waitForProcess =<<
+                   (runProcess
+                      "git"
+                      ["archive"
+                      ,"--prefix=sig-archive/"
+                      ,"--format=tar.gz"
+                      ,"--output=" <> outTarGz
+                      ,"HEAD"]
+                      (Just $ extraRepoPath extra)
+                      Nothing
+                      Nothing
+                      Nothing
+                      Nothing)))
      return (toTypedContent (TarContent (ContentFile outTarGz Nothing)))
