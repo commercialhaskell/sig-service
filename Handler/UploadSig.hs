@@ -10,6 +10,7 @@ import           Data.String
 import qualified Data.Conduit.Binary as C
 import           Import
 import           Network.Wai.Conduit (sourceRequestBody)
+import           Sig.Defaults
 import           System.Directory
 import           System.FilePath
 
@@ -17,7 +18,7 @@ putUploadSigR :: FilePath -> FilePath -> FilePath -> Handler ()
 putUploadSigR packageName packageVersion fingerprint =
   do extra <- getExtra
      req <- getRequest
-     let dir = extraRepoPath extra </> packageName </> packageVersion
+     let dir = extraRepoPath extra </> signaturesDir </> packageName </> packageVersion
      liftIO (do createDirectoryIfMissing True dir
                 runResourceT
                   (sourceRequestBody (reqWaiRequest req) $$
