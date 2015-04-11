@@ -7,7 +7,6 @@ module Foundation where
 
 import           Control.Concurrent.MVar.Lifted
 import           Data.Proxy
-import           Data.Text (Text)
 import           Git
 import           Network.HTTP.Client.Conduit (Manager, HasHttpManager (getHttpManager))
 import           Prelude

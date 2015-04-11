@@ -5,22 +5,22 @@
 module Handler.UploadSig where
 
 import           Control.Monad.Trans.Resource (runResourceT)
-import qualified Data.ByteString.Lazy as LB (toStrict)
-import           Data.Conduit (($$))
-import qualified Data.Conduit.Binary as C (take)
-import           Data.String (fromString)
+import           Data.Conduit
+import           Data.String
+import qualified Data.Conduit.Binary as C
 import           Import
 import           Network.Wai.Conduit (sourceRequestBody)
-import           Sig.Types (Signature(..))
+import           System.Directory
+import           System.FilePath
 
-putUploadSigR :: Text -> Text -> Text -> Handler ()
+putUploadSigR :: FilePath -> FilePath -> FilePath -> Handler ()
 putUploadSigR packageName packageVersion fingerprint =
-  do req <- getRequest
-     signature <-
-       liftIO (fmap (Signature . LB.toStrict)
-                    (runResourceT
-                       (sourceRequestBody (reqWaiRequest req) $$
-                        C.take (1024 * 1024))))
-     $logDebug ("Received signature for " <> packageName <> "-" <>
-                packageVersion <> " from " <> fingerprint <> ": " <>
-                fromString (show signature))
+  do extra <- getExtra
+     req <- getRequest
+     let dir = extraRepoPath extra </> packageName </> packageVersion
+     liftIO (do createDirectoryIfMissing True dir
+                runResourceT
+                  (sourceRequestBody (reqWaiRequest req) $$
+                   C.sinkFile (dir </> fingerprint <> ".asc")))
+     $logDebug ("Received signature for " <> fromString packageName <> "-" <>
+                fromString packageVersion <> " from " <> fromString fingerprint)

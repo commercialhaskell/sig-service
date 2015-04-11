@@ -68,3 +68,33 @@ pull lock repo rebase =
      case result of
        Left err -> error err
        _ -> return ()
+
+-- | Add all files in a repo to the repo
+add :: (MonadIO m,MonadBaseControl IO m,MonadLogger m)
+    => Git -> FilePath -> Bool -> m ()
+add lock repo rebase =
+  do result <-
+       git lock ["-C",repo,"add","*"]
+     case result of
+       Left err -> error err
+       _ -> return ()
+
+-- | Commit files to a repo
+commit :: (MonadIO m,MonadBaseControl IO m,MonadLogger m)
+       => Git -> FilePath -> Bool -> m ()
+commit lock repo rebase =
+  do result <-
+       git lock ["-C",repo,"commit","-m","sig-service automated commit"]
+     case result of
+       Left err -> error err
+       _ -> return ()
+
+-- | Push on a repo.
+push :: (MonadIO m,MonadBaseControl IO m,MonadLogger m)
+      => Git -> FilePath -> Bool -> m ()
+push lock repo rebase =
+  do result <-
+       git lock ["-C",repo,"push"]
+     case result of
+       Left err -> error err
+       _ -> return ()

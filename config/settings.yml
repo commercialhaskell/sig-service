@@ -9,6 +9,7 @@ Default: &defaults
   cache-dir: /tmp/sig-archive-cache
 
 Development:
+  pull-minutes: 1
   <<: *defaults
 
 Testing:

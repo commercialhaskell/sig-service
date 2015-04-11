@@ -68,9 +68,11 @@ makeApplication conf =
      -- Pull from sig-archive every 30 minutes
      void
        (forkIO (runLoggingT
-                  (do liftIO (threadDelay
-                                (1000 * 1000 * 60 * extraPullMinutes))
-                      Git.pull git extraRepoPath True)
+                  (do liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
+                      Git.add git extraRepoPath True
+                      Git.commit git extraRepoPath True
+                      Git.pull git extraRepoPath True
+                      Git.push git extraRepoPath True)
                   logFunc))
      return (logWare $ defaultMiddlewaresNoLogging app,logFunc)
 
