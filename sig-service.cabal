@@ -81,6 +81,10 @@ library
                  , yesod-core                    >= 1.2.20
                  , yesod-form                    >= 1.3
                  , yesod-static                  >= 1.2
+                 , base16-bytestring
+                 , cryptohash
+                 , iso8601-time
+                 , time
 
     -- see https://github.com/yesodweb/yesod/issues/814
     if !os(windows)
