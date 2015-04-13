@@ -18,7 +18,8 @@ putUploadSigR :: FilePath -> FilePath -> FilePath -> Handler ()
 putUploadSigR packageName packageVersion fingerprint =
   do extra <- getExtra
      req <- getRequest
-     let dir = extraRepoPath extra </> signaturesDir </> packageName </> packageVersion
+     let dir = extraRepoPath extra </> signaturesDir </> packageName </>
+               packageVersion
      liftIO (do createDirectoryIfMissing True dir
                 runResourceT
                   (sourceRequestBody (reqWaiRequest req) $$
