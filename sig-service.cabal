@@ -3,6 +3,10 @@ version:           0.0.0
 cabal-version:     >= 1.8
 build-type:        Simple
 
+source-repository head
+  type:     git
+  location: https://github.com/commercialhaskell/sig-service
+
 Flag dev
     Description:   Turn on development settings, like auto-reload templates.
     Default:       False
