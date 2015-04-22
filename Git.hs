@@ -61,18 +61,18 @@ clone lock url target =
 
 -- | Pull on a repo.
 pull :: (MonadIO m,MonadBaseControl IO m,MonadLogger m)
-      => Git -> FilePath -> Bool -> m ()
-pull lock repo rebase =
+      => Git -> FilePath -> m ()
+pull lock repo =
   do result <-
-       git lock (concat [["-C",repo],["pull"],["--rebase" | rebase]])
+       git lock ["-C",repo,"pull","--rebase"]
      case result of
        Left err -> error err
        _ -> return ()
 
 -- | Add all files in a repo to the repo
 add :: (MonadIO m,MonadBaseControl IO m,MonadLogger m)
-    => Git -> FilePath -> Bool -> m ()
-add lock repo rebase =
+    => Git -> FilePath -> m ()
+add lock repo =
   do result <-
        git lock ["-C",repo,"add","*"]
      case result of
@@ -81,8 +81,8 @@ add lock repo rebase =
 
 -- | Commit files to a repo
 commit :: (MonadIO m,MonadBaseControl IO m,MonadLogger m)
-       => Git -> FilePath -> Bool -> m ()
-commit lock repo rebase =
+       => Git -> FilePath -> m ()
+commit lock repo =
   do result <-
        git lock ["-C",repo,"commit","-m","sig-service automated commit"]
      case result of
@@ -91,8 +91,8 @@ commit lock repo rebase =
 
 -- | Push on a repo.
 push :: (MonadIO m,MonadBaseControl IO m,MonadLogger m)
-      => Git -> FilePath -> Bool -> m ()
-push lock repo rebase =
+      => Git -> FilePath -> m ()
+push lock repo =
   do result <-
        git lock ["-C",repo,"push"]
      case result of

@@ -69,10 +69,10 @@ makeApplication conf =
      void
        (forkIO (runLoggingT
                   (do liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
-                      Git.add git extraRepoPath True
-                      Git.commit git extraRepoPath True
-                      Git.pull git extraRepoPath True
-                      Git.push git extraRepoPath True)
+                      Git.add git extraRepoPath
+                      Git.commit git extraRepoPath
+                      Git.pull git extraRepoPath
+                      Git.push git extraRepoPath)
                   logFunc))
      return (logWare $ defaultMiddlewaresNoLogging app,logFunc)
 
