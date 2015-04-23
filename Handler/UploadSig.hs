@@ -35,7 +35,7 @@ putUploadSigR packageName packageVersion fingerprint =
            encode (hash (LB.toStrict signature))
          dir = extraRepoPath extra </> signaturesDir </> packageName </>
                packageVersion
-         file = dir </> fingerprint <> "-" <> date <> "-" <> Ch.unpack digest <>
+         file = dir </> fingerprint <> "_" <> date <> "_" <> Ch.unpack digest <>
                 ".asc"
      liftIO (do createDirectoryIfMissing True dir
                 LB.writeFile file signature)
