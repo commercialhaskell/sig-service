@@ -6,16 +6,20 @@ Default: &defaults
   pull-minutes: 30
   repo-url: git@github.com:commercialhaskell/sig-archive.git
   repo-path: sig-archive
+  repo-branch: master
   cache-dir: /tmp/sig-archive-cache
 
 Development:
   pull-minutes: 1
+  repo-branch: test
   <<: *defaults
 
 Testing:
+  repo-branch: test
   <<: *defaults
 
 Staging:
+  repo-branch: test
   <<: *defaults
 
 Production:
