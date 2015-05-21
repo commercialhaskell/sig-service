@@ -41,9 +41,12 @@ RUN if [ $(echo $GHC|cut -d'.' -f2) = "10" ]; \
     fi
 RUN git clone --depth=1 git://github.com/commercialhaskell/sig-tool.git
 RUN cabal sandbox add-source sig-tool
-RUN cabal install -j --max-backjumps=-1 . yesod-bin
-ENTRYPOINT yesod
-CMD devel
+RUN cabal install -j
+RUN rm -rf sig-tool
+VOLUME /.ssh/
+VOLUME /srv/sig-service/sig-archive/
+ENTRYPOINT sig-service --port 8080
+EXPOSE 8080
 
 # CLEANUP
 ENV PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
