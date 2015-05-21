@@ -7,7 +7,6 @@ module Foundation where
 
 import           Control.Concurrent.MVar.Lifted
 import           Data.Proxy
-import           Git
 import           Network.HTTP.Client.Conduit (Manager, HasHttpManager (getHttpManager))
 import           Prelude
 import qualified Settings
@@ -31,7 +30,6 @@ data App = App
     , getStatic :: Static -- ^ Settings for static file serving.
     , httpManager :: Manager
     , appLogger :: Logger
-    , appGit :: Git
     , appCacheDir :: MVar FilePath
     }
 

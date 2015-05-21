@@ -13,8 +13,9 @@ import           Control.Concurrent (forkIO)
 import           Control.Concurrent.Lifted
 import           Control.Monad
 import           Control.Monad.Logger
+import           Control.Monad.Catch
 import           Data.Default (def)
-import qualified Git
+import           Data.String (fromString)
 import           Import
 import           Network.HTTP.Client.Conduit (newManager)
 import           Network.Wai.Logger (clockDateCacher)
@@ -22,6 +23,7 @@ import           Network.Wai.Middleware.RequestLogger ( mkRequestLogger, outputF
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
 import           System.Directory
 import           System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize)
+import           System.Process (readProcess)
 import           Yesod.Core.Types (loggerSet, Logger (Logger))
 import           Yesod.Default.Config
 import           Yesod.Default.Handlers
@@ -60,27 +62,52 @@ makeApplication conf =
            messageLoggerSource foundation
                                (appLogger foundation)
      -- Clone sig-archive
-     let git = appGit foundation
-         Extra{..} =
+     let Extra{..} =
            (appExtra (settings foundation))
-     runLoggingT (Git.clone git extraRepoUrl extraRepoPath)
-                 logFunc
-     -- Pull from sig-archive every 30 minutes
+     -- Git Add/Commit/Pull/Push every X minutes
      void
        (forkIO (runLoggingT
-                  (do liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
-                      Git.add git extraRepoPath
-                      Git.commit git extraRepoPath
-                      Git.pull git extraRepoPath
-                      Git.push git extraRepoPath)
+                  (do gitAddCommitPullPush extraRepoUrl
+                                           extraRepoBranch
+                                           extraRepoPath
+                                           extraPullMinutes)
                   logFunc))
      return (logWare $ defaultMiddlewaresNoLogging app,logFunc)
+  where gitAddCommitPullPush url branch dir minutes =
+          (do liftIO (threadDelay (1000 * 1000 * 60 * minutes))
+              exists <-
+                liftIO (doesDirectoryExist dir)
+              unless exists
+                     (void (liftIO (readProcess
+                                      "git"
+                                      ["clone","-q","-b",branch,url,dir]
+                                      "")))
+              void (liftIO (readProcess
+                              "git"
+                              ["-C"
+                              ,dir
+                              ,"commit"
+                              ,"-a"
+                              ,"-m"
+                              ,"sig-service automated commit"]
+                              "")) `catches`
+                [Handler (\ex ->
+                            $logInfo ("Not able to commit anything at this time. " <>
+                                      (fromString (show (ex :: IOError)))))]
+              void (liftIO (readProcess "git"
+                                        ["-C",fromString dir,"pull","--rebase"]
+                                        "" >>
+                            readProcess "git"
+                                        ["-C",fromString dir,"push"]
+                                        "")) `catches`
+                [Handler (\ex ->
+                            $logError (fromString (show (ex :: IOError))))]
+              gitAddCommitPullPush url branch dir minutes)
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
 makeFoundation :: AppConfig DefaultEnv Extra -> IO App
 makeFoundation conf = do
-    git <- Git.newGit
     manager <- newManager
     s <- staticSite
 
@@ -90,7 +117,7 @@ makeFoundation conf = do
     createDirectoryIfMissing True (extraCacheDir (appExtra conf))
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
-        foundation = App conf s manager logger git cache
+        foundation = App conf s manager logger cache
 
     return foundation
 

@@ -25,7 +25,6 @@ library
                      Handler.Home
                      Handler.UploadSig
                      Handler.DownloadArchive
-                     Git
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
