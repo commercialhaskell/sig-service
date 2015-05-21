@@ -43,8 +43,7 @@ RUN git clone --depth=1 git://github.com/commercialhaskell/sig-tool.git
 RUN cabal sandbox add-source sig-tool
 RUN cabal install -j
 RUN rm -rf sig-tool
-VOLUME /.ssh/
-VOLUME /srv/sig-service/sig-archive/
+VOLUME /.ssh/ /srv/sig-service/sig-archive/
 ENTRYPOINT sig-service --port 8080
 EXPOSE 8080
 
