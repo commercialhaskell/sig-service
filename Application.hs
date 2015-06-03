@@ -86,8 +86,14 @@ makeApplication conf =
                               "git"
                               ["-C"
                               ,dir
+                              ,"add"
+                              ,"-A"]
+                              "" >>
+                           readProcess
+                              "git"
+                              ["-C"
+                              ,dir
                               ,"commit"
-                              ,"-a"
                               ,"-m"
                               ,"sig-service automated commit"]
                               "")) `catches`
