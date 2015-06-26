@@ -1,0 +1,5 @@
+flags: {}
+packages:
+- '.'
+extra-deps: [ iso8601-time-0.1.2 ]
+resolver: lts-2.12

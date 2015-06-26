@@ -14,3 +14,4 @@ cabal.sandbox.config
 *.swp
 sig-archive/
 /*.keter
+/.stack-work/
