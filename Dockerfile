@@ -18,11 +18,6 @@ RUN rm /etc/apt/apt.conf.d/02proxy
 # GIT
 RUN apt-get install -y git
 ENV HOME=/root
-ADD ./.ssh/ $HOME/.ssh/
-RUN chmod go-rwsx $HOME/.ssh/
-RUN git config --global user.name "Sig Service"
-RUN git config --global user.email "dev@fpcomplete.com"
-RUN git config --global push.default current
 
 # SIG_SERVICE
 ADD ./.cabal-sandbox/bin/sig-service /usr/bin/
