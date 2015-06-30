@@ -68,6 +68,7 @@ library
                  , lifted-base    >= 0.2.3.6
                  , monad-control  >= 0.3
                  , monad-logger   >= 0.3
+                 , path
                  , process
                  , resourcet      >= 1.1.4.1
                  , shakespeare    >= 2.0
