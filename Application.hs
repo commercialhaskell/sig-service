@@ -1,5 +1,7 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -35,6 +37,18 @@ import           Handler.Home
 import           Handler.UploadSig
 import           Handler.DownloadArchive
 
+import qualified Data.Aeson as A
+import qualified Data.ByteString.Char8 as BC
+import           Data.String
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import           Network.HTTP.Conduit (Request(..))
+import qualified Network.HTTP.Conduit as HC
+import           Path
+import qualified System.Environment as E
+import           System.IO
+import           System.Posix
+
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
 -- comments there for more details.
@@ -61,54 +75,23 @@ makeApplication conf =
      let logFunc =
            messageLoggerSource foundation
                                (appLogger foundation)
-     -- Clone sig-archive
-     let Extra{..} =
-           (appExtra (settings foundation))
      -- Git Add/Commit/Pull/Push every X minutes
      void
        (forkIO (runLoggingT
-                  (do gitAddCommitPullPush extraRepoUrl
-                                           extraRepoBranch
-                                           extraRepoPath
-                                           extraPullMinutes)
+                  (do mVaultRes <- fetchVaultAcl
+                      case mVaultRes of
+                        Nothing ->
+                          $logError "Can't retrieve Vault ACL"
+                        Just acl ->
+                          do mConsulRes <- fetchConsulKV acl
+                             case mConsulRes of
+                               Nothing ->
+                                 $logError "Can't retrieve Git SSH key from Consul"
+                               Just (ssh:_) ->
+                                 gitAddCommitPullPush ssh
+                                                      (appExtra (settings foundation)))
                   logFunc))
      return (logWare $ defaultMiddlewaresNoLogging app,logFunc)
-  where gitAddCommitPullPush url branch dir minutes =
-          (do liftIO (threadDelay (1000 * 1000 * 60 * minutes))
-              exists <-
-                liftIO (doesDirectoryExist dir)
-              unless exists
-                     (void (liftIO (readProcess
-                                      "git"
-                                      ["clone","-q","-b",branch,url,dir]
-                                      "")))
-              void (liftIO (readProcess
-                              "git"
-                              ["-C"
-                              ,dir
-                              ,"add"
-                              ,"-A"]
-                              "" >>
-                           readProcess
-                              "git"
-                              ["-C"
-                              ,dir
-                              ,"commit"
-                              ,"-m"
-                              ,"sig-service automated commit"]
-                              "")) `catches`
-                [Handler (\ex ->
-                            $logInfo ("Not able to commit anything at this time. " <>
-                                      (fromString (show (ex :: IOError)))))]
-              void (liftIO (readProcess "git"
-                                        ["-C",fromString dir,"pull","--rebase"]
-                                        "" >>
-                            readProcess "git"
-                                        ["-C",fromString dir,"push"]
-                                        "")) `catches`
-                [Handler (\ex ->
-                            $logError (fromString (show (ex :: IOError))))]
-              gitAddCommitPullPush url branch dir minutes)
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
@@ -135,3 +118,167 @@ getApplicationDev =
     loader = Yesod.Default.Config.loadConfig (configSettings Development)
         { csParseExtra = parseExtra
         }
+
+-- | Performs the github synchronization with the sig-archive repository
+gitAddCommitPullPush :: forall (m :: * -> *) b.
+                        (MonadCatch m, MonadLogger m, MonadIO m, Functor m) =>
+                        ConsulKVResponse -> Extra -> m b
+gitAddCommitPullPush ckr@ConsulKVResponse{..} extra@Extra{..} =
+  (do homeEnv <- liftIO (E.getEnv "HOME")
+      homePath <- parseAbsDir homeEnv
+      let sshKeyPath =
+            homePath </>
+            $(mkRelDir ".ssh") </>
+            $(mkRelFile "id_rsa_sig_archive")
+      -- wait
+      liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
+      -- git config
+      liftIO
+        (do void (readProcess "git"
+                              ["config","--global","user.name","Sig Service"]
+                              "")
+            void (readProcess
+                    "git"
+                    ["config","--global","user.email","dev@fpcomplete.com"]
+                    "")
+            void (readProcess "git"
+                              ["config","--global","push.default","current"]
+                              ""))
+      -- drop ssh key
+      liftIO
+        (do createDirectoryIfMissing True
+                                     (toFilePath . parent $ sshKeyPath)
+            setFileMode (toFilePath . parent $ sshKeyPath)
+                        ownerModes
+            writeFile (toFilePath sshKeyPath)
+                      (T.unpack ckrValue)
+            setFileMode (toFilePath sshKeyPath)
+                        (unionFileModes ownerReadMode ownerWriteMode))
+      -- git clone
+      liftIO
+        (do exists <- doesDirectoryExist extraRepoPath
+            unless exists
+                   (void (readProcess
+                            "git"
+                            ["clone"
+                            ,"-q"
+                            ,"-b"
+                            ,extraRepoBranch
+                            ,extraRepoUrl
+                            ,extraRepoPath]
+                            ""))) `catches`
+        [Handler (\ex ->
+                    $logInfo ("Not able to clone the git repo. " <>
+                              (fromString (show (ex :: IOError)))))]
+      -- git add & commit
+      liftIO
+        (do void (readProcess "git"
+                              ["-C",extraRepoPath,"add","-A"]
+                              "")
+            void (readProcess
+                    "git"
+                    ["-C"
+                    ,extraRepoPath
+                    ,"commit"
+                    ,"-m"
+                    ,"sig-service automated commit"]
+                    "")) `catches`
+        [Handler (\ex ->
+                    $logInfo ("Not able to commit anything at this time. " <>
+                              (fromString (show (ex :: IOError)))))]
+      -- git pull/push
+      liftIO
+        (do void (readProcess "git"
+                              ["-C",fromString extraRepoPath,"pull","--rebase"]
+                              "")
+            void (readProcess "git"
+                              ["-C",fromString extraRepoPath,"push"]
+                              "")) `catches`
+        [Handler (\ex ->
+                    $logError (fromString (show (ex :: IOError))))]
+      -- romove ssh key from disk
+      liftIO (removeFile (toFilePath sshKeyPath))
+      gitAddCommitPullPush ckr extra)
+
+-- | Fetches the Vault credentials lease for the Consul SSH private
+-- key secret.
+fetchVaultAcl :: forall (m :: * -> *).
+                 (MonadBaseControl IO m,MonadIO m,MonadThrow m)
+              => m (Maybe VaultLeaseResponse)
+fetchVaultAcl =
+  do vaultAddr <- liftIO (E.getEnv "VAULT_ADDR")
+     vaultToken <-
+       liftIO (E.getEnv "VAULT_TOKEN")
+     vaultReq <-
+       HC.parseUrl (vaultAddr ++ "/v1/consul/creds/sig_service")
+     let vaultReq' =
+           vaultReq {requestHeaders =
+                       [("X-Vault-Token",BC.pack vaultToken)]}
+     vaultRes <-
+       HC.withManager (HC.httpLbs vaultReq')
+     return (A.decode (HC.responseBody vaultRes))
+
+-- | Fetches the SSH private key from Consul using the given Vault
+-- credentials lease.
+fetchConsulKV :: forall (m :: * -> *).
+                 (MonadBaseControl IO m,MonadIO m,MonadThrow m)
+              => VaultLeaseResponse -> m (Maybe [ConsulKVResponse])
+fetchConsulKV vlr =
+  do consulAddr <-
+       liftIO (E.getEnv "CONSUL_HTTP_ADDR")
+     consulReq <-
+       HC.parseUrl (consulAddr ++ "/v1/kv/sig_service/ssh/private")
+     let consulReq' =
+           HC.setQueryString
+             [(T.encodeUtf8 "token"
+              ,Just (T.encodeUtf8 (vlrDataToken (vlrData vlr))))]
+             consulReq
+     consulRes <-
+       HC.withManager (HC.httpLbs consulReq')
+     return (A.decode (HC.responseBody consulRes))
+
+data VaultLeaseResponse =
+  VaultLeaseResponse {vlrId :: !Text
+                     ,vlrDuration :: Int
+                     ,vlrRenewable :: Bool
+                     ,vlrData :: !VaultLeaseResponseData}
+  deriving (Show)
+
+data VaultLeaseResponseData =
+  VaultLeaseResponseData {vlrDataToken :: !Text}
+  deriving (Show)
+
+instance FromJSON VaultLeaseResponse where
+  parseJSON (Object v) =
+    VaultLeaseResponse <$>
+    (v .: "lease_id") <*>
+    (v .: "lease_duration") <*>
+    (v .: "renewable") <*>
+    (v .: "data")
+  parseJSON _ = mzero
+
+instance FromJSON VaultLeaseResponseData where
+  parseJSON (Object v) =
+    VaultLeaseResponseData <$>
+    (v .: "token")
+  parseJSON _ = mzero
+
+data ConsulKVResponse =
+  ConsulKVResponse {ckrKey :: Text
+                   ,ckrCreateIndex :: Int
+                   ,ckrModifyIndex :: Int
+                   ,ckrLockIndex :: Int
+                   ,ckrFlags :: Int
+                   ,ckrValue :: Text}
+  deriving (Show)
+
+instance FromJSON ConsulKVResponse where
+  parseJSON (Object v) =
+    ConsulKVResponse <$>
+    (v .: "Key") <*>
+    (v .: "CreateIndex") <*>
+    (v .: "ModifyIndex") <*>
+    (v .: "LockIndex") <*>
+    (v .: "Flags") <*>
+    (v .: "Value")
+  parseJSON _ = mzero
