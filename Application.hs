@@ -17,7 +17,6 @@ import           Control.Monad
 import           Control.Monad.Logger
 import           Control.Monad.Catch
 import           Data.Default (def)
-import           Data.String (fromString)
 import           Import
 import           Network.HTTP.Client.Conduit (newManager)
 import           Network.Wai.Logger (clockDateCacher)
@@ -25,7 +24,7 @@ import           Network.Wai.Middleware.RequestLogger ( mkRequestLogger, outputF
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
 import           System.Directory
 import           System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize)
-import           System.Process (readProcess)
+import           System.Process
 import           Yesod.Core.Types (loggerSet, Logger (Logger))
 import           Yesod.Default.Config
 import           Yesod.Default.Handlers
@@ -130,6 +129,9 @@ gitAddCommitPullPush ckr@ConsulKVResponse{..} extra@Extra{..} =
             homePath </>
             $(mkRelDir ".ssh") </>
             $(mkRelFile "id_rsa_sig_archive")
+          gitSshCmd =
+            Just [("GIT_SSH_COMMAND"
+                  ,"ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no")]
       -- wait
       liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
       -- git config
@@ -158,15 +160,15 @@ gitAddCommitPullPush ckr@ConsulKVResponse{..} extra@Extra{..} =
       liftIO
         (do exists <- doesDirectoryExist extraRepoPath
             unless exists
-                   (void (readProcess
-                            "git"
-                            ["clone"
-                            ,"-q"
-                            ,"-b"
-                            ,extraRepoBranch
-                            ,extraRepoUrl
-                            ,extraRepoPath]
-                            ""))) `catches`
+                   (void (do (_,_,_,clone) <-
+                               createProcess
+                                 (proc "git"
+                                       ["-q"
+                                       ,"-b"
+                                       ,extraRepoBranch
+                                       ,extraRepoUrl
+                                       ,extraRepoPath]) {env = gitSshCmd}
+                             void (waitForProcess clone)))) `catches`
         [Handler (\ex ->
                     $logInfo ("Not able to clone the git repo. " <>
                               (fromString (show (ex :: IOError)))))]
@@ -188,12 +190,13 @@ gitAddCommitPullPush ckr@ConsulKVResponse{..} extra@Extra{..} =
                               (fromString (show (ex :: IOError)))))]
       -- git pull/push
       liftIO
-        (do void (readProcess "git"
-                              ["-C",fromString extraRepoPath,"pull","--rebase"]
-                              "")
-            void (readProcess "git"
-                              ["-C",fromString extraRepoPath,"push"]
-                              "")) `catches`
+        (do (_,_,_,pull) <-
+              createProcess
+                (proc "git" ["-C",extraRepoPath,"pull","--rebase"]) {env = gitSshCmd}
+            void (waitForProcess pull)
+            (_,_,_,push) <-
+              createProcess (proc "git" ["-C",extraRepoPath,"push"]) {env = gitSshCmd}
+            void (waitForProcess push)) `catches`
         [Handler (\ex ->
                     $logError (fromString (show (ex :: IOError))))]
       -- romove ssh key from disk
