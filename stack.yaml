@@ -1,5 +1,18 @@
 flags: {}
 packages:
 - '.'
-extra-deps: [ iso8601-time-0.1.2 ]
-resolver: lts-2.12
+- '../sig-tool'
+extra-deps: [ iso8601-time-0.1.2
+            , path-0.5.2
+            , yesod-test-1.4.3.1
+            , hspec-2.1.7 ]
+resolver: lts-2.16
+image:
+  container:
+    base: "commercialhaskell/sig-service-base"
+    add:
+      config/: /usr/local/bin/config/
+      sig-archive/: /usr/local/bin/sig-archive/
+      static/: /usr/local/bin/static/
+    entrypoints:
+      - sig-service
