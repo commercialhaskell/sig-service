@@ -36,11 +36,14 @@ import           Handler.Home
 import           Handler.UploadSig
 import           Handler.DownloadArchive
 
+import           Control.Monad.Error
 import qualified Data.Aeson as A
+import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8 as BC
 import           Data.String
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import           Data.Void
 import           Network.HTTP.Conduit (Request(..))
 import qualified Network.HTTP.Conduit as HC
 import           Path
@@ -76,20 +79,8 @@ makeApplication conf =
                                (appLogger foundation)
      -- Git Add/Commit/Pull/Push every X minutes
      void
-       (forkIO (runLoggingT
-                  (do mVaultRes <- fetchVaultAcl
-                      case mVaultRes of
-                        Nothing ->
-                          $logError "Can't retrieve Vault ACL"
-                        Just acl ->
-                          do mConsulRes <- fetchConsulKV acl
-                             case mConsulRes of
-                               Nothing ->
-                                 $logError "Can't retrieve Git SSH key from Consul"
-                               Just (ssh:_) ->
-                                 gitAddCommitPullPush ssh
-                                                      (appExtra (settings foundation)))
-                  logFunc))
+       (forkIO (runLoggingT (vacuous (gitAddCommitPullPush (appExtra (settings foundation))))
+                            logFunc))
      return (logWare $ defaultMiddlewaresNoLogging app,logFunc)
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
@@ -119,89 +110,118 @@ getApplicationDev =
         }
 
 -- | Performs the github synchronization with the sig-archive repository
-gitAddCommitPullPush :: forall (m :: * -> *) b.
-                        (MonadCatch m, MonadLogger m, MonadIO m, Functor m) =>
-                        ConsulKVResponse -> Extra -> m b
-gitAddCommitPullPush ckr@ConsulKVResponse{..} extra@Extra{..} =
-  (do homeEnv <- liftIO (E.getEnv "HOME")
-      homePath <- parseAbsDir homeEnv
-      let sshKeyPath =
-            homePath </>
-            $(mkRelDir ".ssh") </>
-            $(mkRelFile "id_rsa_sig_archive")
-          gitSshCmd =
-            Just [("GIT_SSH_COMMAND"
-                  ,"ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no")]
-      -- wait
-      liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
-      -- git config
-      liftIO
-        (do void (readProcess "git"
-                              ["config","--global","user.name","Sig Service"]
-                              "")
-            void (readProcess
-                    "git"
-                    ["config","--global","user.email","dev@fpcomplete.com"]
-                    "")
-            void (readProcess "git"
-                              ["config","--global","push.default","current"]
-                              ""))
-      -- drop ssh key
-      liftIO
-        (do createDirectoryIfMissing True
-                                     (toFilePath . parent $ sshKeyPath)
-            setFileMode (toFilePath . parent $ sshKeyPath)
-                        ownerModes
-            writeFile (toFilePath sshKeyPath)
-                      (T.unpack ckrValue)
-            setFileMode (toFilePath sshKeyPath)
-                        (unionFileModes ownerReadMode ownerWriteMode))
-      -- git clone
-      liftIO
-        (do exists <- doesDirectoryExist extraRepoPath
-            unless exists
-                   (void (do (_,_,_,clone) <-
-                               createProcess
-                                 (proc "git"
-                                       ["-q"
-                                       ,"-b"
-                                       ,extraRepoBranch
-                                       ,extraRepoUrl
-                                       ,extraRepoPath]) {env = gitSshCmd}
-                             void (waitForProcess clone)))) `catches`
-        [Handler (\ex ->
-                    $logInfo ("Not able to clone the git repo. " <>
-                              (fromString (show (ex :: IOError)))))]
-      -- git add & commit
-      liftIO
-        (do void (readProcess "git"
-                              ["-C",extraRepoPath,"add","-A"]
-                              "")
-            void (readProcess
-                    "git"
-                    ["-C"
-                    ,extraRepoPath
-                    ,"commit"
-                    ,"-m"
-                    ,"sig-service automated commit"]
-                    "")) `catches`
-        [Handler (\ex ->
-                    $logInfo ("Not able to commit anything at this time. " <>
-                              (fromString (show (ex :: IOError)))))]
-      -- git pull/push
-      liftIO
-        (do (_,_,_,pull) <-
-              createProcess
-                (proc "git" ["-C",extraRepoPath,"pull","--rebase"]) {env = gitSshCmd}
-            void (waitForProcess pull)
-            (_,_,_,push) <-
-              createProcess (proc "git" ["-C",extraRepoPath,"push"]) {env = gitSshCmd}
-            void (waitForProcess push)) `catches`
-        [Handler (\ex ->
-                    $logError (fromString (show (ex :: IOError))))]
-      -- romove ssh key from disk
-      liftIO (removeFile (toFilePath sshKeyPath))
-      gitAddCommitPullPush ckr extra)
+gitAddCommitPullPush :: forall (m :: * -> *).
+                        (MonadBaseControl IO m,MonadCatch m,MonadMask m,MonadLogger m,MonadIO m,Functor m)
+                     => Extra -> m Void
+gitAddCommitPullPush extra@Extra{..} =
+  do homeEnv <- liftIO (E.getEnv "HOME")
+     homePath <- parseAbsDir homeEnv
+     let sshKeyPath =
+           homePath </>
+           $(mkRelDir ".ssh") </>
+           $(mkRelFile "id_rsa_sig_archive")
+         name = "Sig Service"
+         email = "dev@fpcomplete.com"
+         gitEnv =
+           Just [("HOME",homeEnv)
+                ,("GIT_SSH_COMMAND"
+                 ,"ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i " ++
+                  toFilePath sshKeyPath)
+                ,("GIT_CONFIG_NOSYSTEM","1")
+                ,("GIT_AUTHOR_NAME",name)
+                ,("GIT_AUTHOR_EMAIL",email)
+                ,("GIT_COMMITTER_NAME",name)
+                ,("GIT_COMMITTER_EMAIL",email)]
+     liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
+     mVaultRes <- fetchVaultAcl
+     case mVaultRes of
+       Nothing ->
+         $logError "Can't retrieve vault acl for sig-archive git ssh key"
+       Just acl ->
+         do mConsulRes <- fetchConsulKV acl
+            case mConsulRes of
+              Nothing ->
+                $logError "Can't retrieve sig-service git ssh key from consul"
+              Just (ssh:_) ->
+                case (B64.decode . BC.pack . T.unpack) (ckrValue ssh) of
+                  Left err ->
+                    $logError (T.pack ("Can't extract sig-service git ssh key received from consul: " ++
+                                       err))
+                  Right ssh' ->
+                    bracket (writeSshKey sshKeyPath
+                                         (BC.unpack ssh'))
+                            (const (liftIO (removeFile (toFilePath sshKeyPath))))
+                            (const (do $logWarn .
+                                         T.pack =<<
+                                         liftIO (readFile (toFilePath sshKeyPath))
+                                       gitClone extra gitEnv
+                                       gitAddAndCommit extra gitEnv
+                                       gitPullAndPush extra gitEnv))
+     gitAddCommitPullPush extra
+
+writeSshKey :: forall (m :: * -> *).
+               (MonadCatch m,MonadLogger m,MonadIO m)
+            => Path Abs File -> String -> m ()
+writeSshKey path key =
+  do let dir = toFilePath (parent path)
+     liftIO (createDirectoryIfMissing True dir)
+     liftIO (setFileMode dir ownerModes)
+     liftIO (writeFile (toFilePath path) key)
+     liftIO (setFileMode (toFilePath path)
+                         (unionFileModes ownerReadMode ownerWriteMode))
+
+gitClone :: forall (m :: * -> *).
+            (MonadCatch m,MonadLogger m,MonadIO m,Functor m)
+         => Extra -> Maybe [(String,String)] -> m ()
+gitClone Extra{..} gitEnv =
+  do exists <-
+       liftIO (doesDirectoryExist extraRepoPath)
+     unless exists
+            (do (_,_,_,clone) <-
+                  liftIO (createProcess
+                            (proc "git"
+                                  ["-q"
+                                  ,"-b"
+                                  ,extraRepoBranch
+                                  ,extraRepoUrl
+                                  ,extraRepoPath]) {env = gitEnv})
+                void (liftIO (waitForProcess clone))) `catches`
+       [Handler (\ex ->
+                   $logInfo ("Not able to clone the git repo. " <>
+                             (fromString (show (ex :: IOError)))))]
+
+gitAddAndCommit :: forall (m :: * -> *).
+                   (MonadCatch m,MonadLogger m,MonadIO m,Functor m)
+                => Extra -> Maybe [(String, String)] -> m ()
+gitAddAndCommit Extra{..} gitEnv =
+  (do (_,_,_,add) <-
+        liftIO (createProcess (proc "git" ["-C",extraRepoPath,"add","-A"]) {env = gitEnv})
+      void (liftIO (waitForProcess add))
+      (_,_,_,commit) <-
+        liftIO (createProcess
+                  (proc "git"
+                        ["-C"
+                        ,extraRepoPath
+                        ,"commit"
+                        ,"-m"
+                        ,"sig-service automated commit"]) {env = gitEnv})
+      void (liftIO (waitForProcess commit))) `catches`
+  [Handler (\ex ->
+              $logInfo ("Not able to commit anything at this time. " <>
+                        (fromString (show (ex :: IOError)))))]
+
+gitPullAndPush :: forall (m :: * -> *).
+                  (MonadCatch m,MonadLogger m,MonadIO m,Functor m)
+               => Extra -> Maybe [(String, String)] -> m ()
+gitPullAndPush Extra{..} gitEnv =
+  (do (_,_,_,pull) <-
+        liftIO (createProcess (proc "git" ["-C",extraRepoPath,"pull","--rebase"]) {env = gitEnv})
+      void (liftIO (waitForProcess pull))
+      (_,_,_,push) <-
+        liftIO (createProcess (proc "git" ["-C",extraRepoPath,"push"]) {env = gitEnv})
+      void (liftIO (waitForProcess push))) `catches`
+  [Handler (\ex ->
+              $logError (fromString (show (ex :: IOError))))]
 
 -- | Fetches the Vault credentials lease for the Consul SSH private
 -- key secret.
