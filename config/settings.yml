@@ -15,6 +15,7 @@ Development:
   <<: *defaults
 
 Testing:
+  pull-minutes: 3
   repo-branch: test
   <<: *defaults
 
