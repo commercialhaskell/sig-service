@@ -132,7 +132,6 @@ gitAddCommitPullPush extra@Extra{..} =
                 ,("GIT_AUTHOR_EMAIL",email)
                 ,("GIT_COMMITTER_NAME",name)
                 ,("GIT_COMMITTER_EMAIL",email)]
-     liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
      mVaultRes <- fetchVaultAcl
      case mVaultRes of
        Nothing ->
@@ -154,6 +153,7 @@ gitAddCommitPullPush extra@Extra{..} =
                             (const (do gitClone extra gitEnv
                                        gitAddAndCommit extra gitEnv
                                        gitPullAndPush extra gitEnv))
+     liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
      gitAddCommitPullPush extra
 
 writeSshKey :: forall (m :: * -> *).
