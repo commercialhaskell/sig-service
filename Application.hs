@@ -151,10 +151,7 @@ gitAddCommitPullPush extra@Extra{..} =
                     bracket (writeSshKey sshKeyPath
                                          (BC.unpack ssh'))
                             (const (liftIO (removeFile (toFilePath sshKeyPath))))
-                            (const (do $logWarn .
-                                         T.pack =<<
-                                         liftIO (readFile (toFilePath sshKeyPath))
-                                       gitClone extra gitEnv
+                            (const (do gitClone extra gitEnv
                                        gitAddAndCommit extra gitEnv
                                        gitPullAndPush extra gitEnv))
      gitAddCommitPullPush extra
