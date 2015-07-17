@@ -6,7 +6,7 @@ extra-deps: [ iso8601-time-0.1.2
             , path-0.5.2
             , yesod-test-1.4.3.1
             , hspec-2.1.7 ]
-resolver: lts-2.16
+resolver: lts-2.18
 image:
   container:
     base: "commercialhaskell/sig-service-base"
