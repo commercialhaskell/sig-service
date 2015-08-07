@@ -1,18 +1,21 @@
 flags: {}
 packages:
 - '.'
-- '../sig-tool'
+- 'vendor/sig-tool'
 extra-deps: [ iso8601-time-0.1.2
             , path-0.5.2
             , yesod-test-1.4.3.1
             , hspec-2.1.7 ]
-resolver: lts-2.18
+resolver: lts-2.20
+docker:
+  enable: true
 image:
   container:
     base: "commercialhaskell/sig-service-base"
+    name: "commercialhaskell/sig-service-runtime"
     add:
-      config/: /usr/local/bin/config/
-      sig-archive/: /usr/local/bin/sig-archive/
-      static/: /usr/local/bin/static/
+      config/: /opt/sig-service/config/
+      sig-archive/: /opt/sig-service/sig-archive/
+      static/: /opt/sig-service/static/
     entrypoints:
       - sig-service
