@@ -22,7 +22,7 @@ run the following:
 
     stack image container
 
-This will produce 2 new images layed on top of
+This will produce 2 new images layered on top of
 commercialhaskell/sig-service-base:
 
     % docker images | grep sig-service
