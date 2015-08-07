@@ -2,6 +2,9 @@
 
 ## Build the runtime base Docker image
 
+Take a look at the [Dockerfile](Dockerfile) and then run the following in the
+project directory:
+
     docker build -t commercialhaskell/sig-service-base .
 
 This will produce a new image:
