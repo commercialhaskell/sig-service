@@ -9,6 +9,9 @@ This will produce a new image:
     % docker images | grep sig-service
     commercialhaskell/sig-service-base                  latest              9f8c8fbe329a        52 minutes ago      310.6 MB
 
+You should only need to build your runtime image occassionally (as
+needed for changes to the Dockerfile).
+
 ## Build the Yesod web application and create the application images
 
 Take a peek at [stack.yaml](stack.yaml) to see the docker & image options.  Then
