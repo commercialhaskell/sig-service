@@ -12,6 +12,5 @@ yesod-devel/
 cabal.sandbox.config
 .DS_Store
 *.swp
-sig-archive/
 /*.keter
 /.stack-work/
