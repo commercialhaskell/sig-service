@@ -7,15 +7,23 @@ extra-deps: [ iso8601-time-0.1.2
             , yesod-test-1.4.3.1
             , hspec-2.1.7 ]
 resolver: lts-2.20
+
+# BUILD OUR APPLICATION WITHIN A DOCKER CONTAINER (UBUNTU 14.04)
 docker:
   enable: true
+
+# CREATE DOCKER IMAGES FROM OUR APPLICATION
 image:
   container:
+    # THE NAME OF THE BASE RUNTIME IMAGE (Dockerfile)
     base: "commercialhaskell/sig-service-base"
+    # THE PREFIX OF THE APPLICATION IMAGE NAME
     name: "commercialhaskell/sig-service-runtime"
+    # FOLDERS TO ADD TO THE IMAGE FROM THE PROJECT
     add:
       config/: /opt/sig-service/config/
-      sig-archive/: /opt/sig-service/sig-archive/
       static/: /opt/sig-service/static/
+      sig-archive/: /opt/sig-service/sig-archive/
+    # WE WANT TO CREATE A IMAGE WITH A DEFAULT EXECUTABLE
     entrypoints:
       - sig-service
