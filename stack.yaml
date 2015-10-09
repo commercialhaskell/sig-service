@@ -24,6 +24,3 @@ image:
       config/: /opt/sig-service/config/
       static/: /opt/sig-service/static/
       sig-archive/: /opt/sig-service/sig-archive/
-    # WE WANT TO CREATE A IMAGE WITH A DEFAULT EXECUTABLE
-    entrypoints:
-      - sig-service
