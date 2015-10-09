@@ -20,6 +20,7 @@ Testing:
   <<: *defaults
 
 Staging:
+  pull-minutes: 10
   repo-branch: test
   <<: *defaults
 
