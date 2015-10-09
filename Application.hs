@@ -142,7 +142,7 @@ gitAddCommitPullPush extra@Extra{..} =
               Nothing ->
                 $logError "Can't retrieve sig-service git ssh key from consul"
               Just (ssh:_) ->
-                case (B64.decode . BC.pack . T.unpack) (ckrValue ssh) of
+                case (B64.decode . T.encodeUtf8) (ckrValue ssh) of
                   Left err ->
                     $logError (T.pack ("Can't extract sig-service git ssh key received from consul: " ++
                                        err))
