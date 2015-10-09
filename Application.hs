@@ -38,6 +38,7 @@ import           Handler.DownloadArchive
 
 import           Control.Monad.Error
 import qualified Data.Aeson as A
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8 as BC
 import           Data.String
@@ -147,8 +148,7 @@ gitAddCommitPullPush extra@Extra{..} =
                     $logError (T.pack ("Can't extract sig-service git ssh key received from consul: " ++
                                        err))
                   Right ssh' ->
-                    bracket (writeSshKey sshKeyPath
-                                         (BC.unpack ssh'))
+                    bracket (writeSshKey sshKeyPath ssh')
                             (const (liftIO (removeFile (toFilePath sshKeyPath))))
                             (const (do gitClone extra gitEnv
                                        gitAddAndCommit extra gitEnv
@@ -158,14 +158,14 @@ gitAddCommitPullPush extra@Extra{..} =
 
 writeSshKey :: forall (m :: * -> *).
                (MonadCatch m,MonadLogger m,MonadIO m)
-            => Path Abs File -> String -> m ()
+            => Path Abs File -> ByteString -> m ()
 writeSshKey path key =
-  do let dir = toFilePath (parent path)
-     liftIO (createDirectoryIfMissing True dir)
-     liftIO (setFileMode dir ownerModes)
-     liftIO (writeFile (toFilePath path) key)
-     liftIO (setFileMode (toFilePath path)
-                         (unionFileModes ownerReadMode ownerWriteMode))
+  let dir = toFilePath (parent path)
+  in liftIO (do createDirectoryIfMissing True dir
+                setFileMode dir ownerModes
+                BC.writeFile (toFilePath path) key
+                setFileMode (toFilePath path)
+                            (unionFileModes ownerReadMode ownerWriteMode))
 
 gitClone :: forall (m :: * -> *).
             (MonadCatch m,MonadLogger m,MonadIO m,Functor m)
