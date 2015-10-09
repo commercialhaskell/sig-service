@@ -7,7 +7,7 @@ Default: &defaults
   repo-url: git@github.com:commercialhaskell/sig-archive.git
   repo-path: sig-archive
   repo-branch: master
-  cache-dir: /tmp/sig-archive-cache
+  cache-dir: /opt/sig-service/sig-archive
 
 Development:
   pull-minutes: 1
