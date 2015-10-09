@@ -1,6 +1,3 @@
 [submodule "vendor/sig-tool"]
 	path = vendor/sig-tool
 	url = https://github.com/commercialhaskell/sig-tool.git
-[submodule "sig-archive"]
-	path = sig-archive
-	url = https://github.com/commercialhaskell/sig-archive.git
