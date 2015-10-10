@@ -41,7 +41,7 @@ without a default executable.
            --publish=8080:8080 \
            --rm=true \
            --tty=true \
-           commercialhaskell/sig-service-runtime \
+           commercialhaskell/sig-service \
            sig-service Development --port 8080
 
 # Kubernetes
