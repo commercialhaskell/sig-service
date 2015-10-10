@@ -157,13 +157,13 @@ on for more on Consul & Vault]
         don't have any existing keys setup.
 
             # PUSH THE GITHUB SSH KEYS TO CONSUL
-            with-proxy consul 1 (\
+            with-proxy consul 1 (
                 curl -v -X PUT \
                     http://127.0.0.1:8500/v1/kv/sig_service/ssh/public\?token\=$CONSUL_ACL_MASTER_TOKEN \
-                    --data-binary @id_rsa.pub; \
+                    --data-binary @id_rsa.pub
                 curl -v -X PUT \
                     http://127.0.0.1:8500/v1/kv/sig_service/ssh/private\?token\=$CONSUL_ACL_MASTER_TOKEN \
-                    --data-binary @id_rsa \
+                    --data-binary @id_rsa
             )
 
 -   Configuring Vault
@@ -211,11 +211,11 @@ on for more on Consul & Vault]
 
             # CYCLE THROUGH ALL THE VAULT SERVERS & CONFIGURE CONSUL
             for i in $(seq 3); do
-                with-proxy vault $i (\
-                    vault mount consul && \
+                with-proxy vault $i (
+                    vault mount consul
                     vault write consul/config/access \
                           address=consul-vault.default.svc.cluster.local:8500 \
-                          token=$CONSUL_ACL_MASTER_TOKEN \
+                          token=$CONSUL_ACL_MASTER_TOKEN
                 )
             done
 
@@ -224,8 +224,8 @@ on for more on Consul & Vault]
             # CREATE A VAULT POLICY FOR CONSUL GITHUB SSH KEYS
             with-proxy vault 1 \
                 echo 'key "sig_service" { policy="read" }' \
-                | base64 \
-                | vault write consul/roles/sig_service policy=-
+                    | base64 \
+                    | vault write consul/roles/sig_service policy=-
 
     -   Create a new Vault token for Sig Service
 
