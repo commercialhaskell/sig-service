@@ -18,7 +18,7 @@ image:
     # THE NAME OF THE BASE RUNTIME IMAGE (Dockerfile)
     base: "commercialhaskell/sig-service-base"
     # THE PREFIX OF THE APPLICATION IMAGE NAME
-    name: "commercialhaskell/sig-service-runtime"
+    name: "commercialhaskell/sig-service"
     # FOLDERS TO ADD TO THE IMAGE FROM THE PROJECT
     add:
       config/: /opt/sig-service/config/
