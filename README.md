@@ -1,19 +1,14 @@
 # Build
 
-## Build the runtime base Docker image
+## Build the run-time base Docker image
 
 Take a look at the [Dockerfile](Dockerfile) and then run the following in the
 project directory:
 
     docker build --tag commercialhaskell/sig-service-base .
 
-This will produce a new image:
-
-    % docker images
-    commercialhaskell/sig-service-base latest 9f8c8fbe329a 2 minutes ago 310.6 MB
-
-You should only need to build your runtime base Docker image
-occassionally (as needed for changes to the Dockerfile).
+You should only need to build your run-time base Docker image
+occasionally (as needed for changes to the Dockerfile).
 
 ## Build the Yesod web application and create the application images
 
@@ -25,7 +20,6 @@ run the following:
 This will produce 2 new images layered on top of
 commercialhaskell/sig-service-base:
 
-    % docker images
     commercialhaskell/sig-service-base latest 9f8c8fbe329a 2 minutes ago 310.6 MB
     commercialhaskell/sig-service      latest 36bb8a0008b4 3 minutes ago 382 MB
 
@@ -44,37 +38,118 @@ without a default executable.
            commercialhaskell/sig-service \
            sig-service Development --port 8080
 
+You will need to have an accessible Consul & Vault service. [Read
+on for more on Consul & Vault]
+
 # Kubernetes
 
 ## Deploy Dependencies
 
 -   Deploy Consul & Vault
     
-        kubectl create -f kube/cluster-vault-svc.yaml
-        kubectl create -f kube/cluster-vault-rc.yaml
+    Consul & Vault run best together on the same node. They fit the
+    2-peas-in-a-pod pattern of Kubernetes Pod deployments. Two
+    containers run best side-by-side.  The [Kubernetes service file](file://kube/consul-vault-svc.yaml)
+    has the details on what ports are open & the name of the
+    service.
+    
+    It's important to create the service first even before we have
+    any docker containers deployed.  Deploying the service first
+    sets up any needed load-balancers & also registers with the
+    internal DNS service.  We need our service registered with DNS
+    so that the rest of the cluster can figure out how to join one
+    another.
+    
+    Create the Consul & Vault service as a 3 node cluster. 
+    
+        kubectl create -f kube/consul-vault-svc.yaml
+        kubectl get svc
+    
+        NAME           LABELS                                    SELECTOR           IP(S)       PORT(S)
+        consul-vault   app=consul-vault                          app=consul-vault   10.3.0.5    8200/TCP
+                                                                                                8300/TCP
+                                                                                                8301/TCP
+                                                                                                8301/UDP
+                                                                                                8302/TCP
+                                                                                                8302/UDP
+                                                                                                8400/TCP
+                                                                                                8500/TCP
+                                                                                                8600/TCP
+                                                                                                8600/UDP
+        kubernetes     component=apiserver,provider=kubernetes   <none>             10.3.0.1    443/TCP
+    
+    Think of the service as a DNS entry with a load-balancer
+    entry-point. Notice the service does not have a version number in
+    it. The given SELECTOR (above) is used to decide where TCP
+    connections are routed in the cluster dynamically.  If we play
+    our cards right, we won't have to re-deploy the service part of
+    Consul & Vault ever again.
+    
+    Now create the replication controller (which will instantiate &
+    supervise the required number of replicant pods.)
+    
+        kubectl create -f kube/consul-vault-rc.yaml
+    
+    List the replication controllers in your cluster.  You'll see
+    that the replication controller has a version number in it's
+    name.  This is so we can do rolling upgrades from one version to
+    the next. [More on upgrades later.]
+    
+        kubectl get rc
+    
+        CONTROLLER           CONTAINER(S)   IMAGE(S)                SELECTOR                     REPLICAS
+        consul-vault-0-0-1   consul         dysinger/consul-vault   app=consul-vault,ver=0.0.1   3
+                             vault          dysinger/consul-vault
+    
+    List the pods in your cluster.
+    
+        kubectl get po
+    
+        NAME                       READY     STATUS    RESTARTS   AGE
+        consul-vault-0-0-1-4e3ea   2/2       Running   0          1d
+        consul-vault-0-0-1-q1l38   2/2       Running   0          1d
+        consul-vault-0-0-1-x2oza   2/2       Running   0          1d
+    
+    
+    View the log output from the pods to make sure everything is OK.
+    You should see each Consul pod joining other pods & electing a
+    leader.
+    
+        kubectl logs consul-vault-0-0-1-4e3ea consul
+    
+    You should see Vault say that it's serving on an IP address &
+    port number.
+    
+        kubectl logs consul-vault-0-0-1-4e3ea vault
+    
+    Let's create a function that will open a proxy port to select
+    consul/vault pods. This way we aren't repeating commands over
+    and over.
     
         function with-proxy {
-            # FUNCTION ARGUMENTS
+            # SEPARATE FUNCTION ARGUMENTS FROM THE REST OF THE ARGS
             POD_SEARCH=$1 ; shift
             POD_INDEX=$1 ; shift
-            # RUN A LOCALHOST PROXY TO THE FIRST CONSUL POD WE CAN FIND IN THE VPC
+            # RUN A PROXY TO THE $POD_INDEX-th POD THAT MATCHES $POD_SEARCH
             kubectl port-forward \
                     -p $(kubectl get po|grep $POD_SEARCH|cut -d' ' -f1|head -n $POD_INDEX) \
                     8200 8300 8301 8302 8400 8500 8600 &
             # TRACK THE PID OF THE PREVIOUS BACKGROUND KUBECTL COMMAND
             PORT_FORWARD_PID=$!
-            # RUN THE COMMANDS GIVEN TO THIS FUNCTION
+            # EXECUTE THE REST OF THE ARGS GIVEN TO THIS FUNCTION
             $@
             # KILL OFF THE BACKGROUND PORT-FORWARD KUBECTL COMMAND
             kill $PORT_FORWARD_PID
         }
+    
+    Let's set a few environment variables for Consul.
     
         # SET THE CONSUL/VAULT HTTP ADDR TO THE LOCALHOST PROXY PORT
         CONSUL_HTTP_ADDR=127.0.0.1:8500
         # SET THE CONSUL MASTER TOKEN (SEE ALSO THE KUBERNETES RC FILE)
         CONSUL_ACL_MASTER_TOKEN=bba227cc-6ef8-11e5-a46b-4437e6b12281
 
--   Configure Consul
+-   Configuring Consul
     -   Push SSH Keys for GitHub
         
         You would, of course, need the github ssh keys setup ahead of
@@ -99,12 +174,10 @@ without a default executable.
                        --token=$CONSUL_ACL_MASTER_TOKEN \
                        --management
 
--   Configure Vault
+-   Configuring Vault
     -   Initialize Vault
         
             with-proxy vault 1 vault init
-        
-        Results with something like 
         
             Key 1: b268aa9a3e1dad2f6a67624b05e480fb7f7cbda923419d026d509e9ecd2f25eb01
             Key 2: 7c17ebb9c958ad9bfd01ac655f895a75cf1a5e8212a11ada1a24423f2b2fe69f02
@@ -122,6 +195,8 @@ without a default executable.
             Vault will remain permanently sealed.
     
     -   Unseal all the Vault pods
+        
+        You can't use Vault until you unseal every node.  This requires that you enter 3 of the above keys on every node. 
         
             for i in $(seq 3); do
                 with-proxy vault $i for j in $(seq 3); do vault unseal; done
