@@ -188,7 +188,8 @@ on for more on Consul & Vault]
 
     -   Unseal all the Vault pods
 
-        You can't use Vault until you unseal every node.  This requires that you enter 3 of the above keys on every node.
+        You can't use Vault until you unseal every pod.  This requires
+        that you enter 3 of the above keys on every pod.
 
             for i in $(seq 3); do
                 with-proxy vault $i for j in $(seq 3); do vault unseal; done
@@ -201,7 +202,7 @@ on for more on Consul & Vault]
     -   Connect Vault to Consul
 
         Mounting & configuring Consul only works on the master Vault
-        node.  We don't know which one that is so we'll just try them
+        pod.  We don't know which one that is so we'll just try them
         all. Won't hurt anything.
 
             # CYCLE THROUGH ALL THE VAULT SERVERS & CONFIGURE CONSUL
