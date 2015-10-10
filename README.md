@@ -197,13 +197,17 @@ on for more on Consul & Vault]
 
     -   Authenticate with Vault
 
+        Authenticate with the Initial Root Token (taken from the
+        output of the above \`vault init\` command).
+
             with-proxy vault 1 vault auth
 
     -   Connect Vault to Consul
 
         Mounting & configuring Consul only works on the master Vault
         pod.  We don't know which one that is so we'll just try them
-        all. Won't hurt anything.
+        all. The nodes that aren't master will just complain.  It
+        won't hurt anything.
 
             # CYCLE THROUGH ALL THE VAULT SERVERS & CONFIGURE CONSUL
             for i in $(seq 3); do
