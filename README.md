@@ -227,10 +227,9 @@ on for more on Consul & Vault]
                     | base64 \
                     | vault write consul/roles/sig_service policy=-
 
-    -   Create a new Vault token for Sig Service
-
-            # CREATE A VAULT TOKEN FOR SIG-SERVICE
-            with-proxy vault 1 vault token-create
+        This will output a token which you can put into the
+        sig-service replication controller pod environment. (See the
+        kube/ files for sig-service)
 
 ## Deploy Sig Service
 
