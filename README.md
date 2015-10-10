@@ -104,20 +104,22 @@ without a default executable.
         
             with-proxy vault 1 vault init
         
-        Key 1: b268aa9a3e1dad2f6a67624b05e480fb7f7cbda923419d026d509e9ecd2f25eb01
-        Key 2: 7c17ebb9c958ad9bfd01ac655f895a75cf1a5e8212a11ada1a24423f2b2fe69f02
-        Key 3: b06cdd9a85393cc97c8180ad45f994f63d891ff197b49b991e47bac8868970d803
-        Key 4: 48fe1eba938193b9fbe94ffb54771c22cb1323a477f46c1878743f7fde378a0804
-        Key 5: 84852899dfe002eb7a6963334e07d2a1398062d7f2e1ed5b7c17c78873911c4f05
-        Initial Root Token: f9ab89e6-f201-be0c-18bf-5d58b4c0da51
+        Results with something like 
         
-        Vault initialized with 5 keys and a key threshold of 3. Please
-        securely distribute the above keys. When the Vault is re-sealed,
-        restarted, or stopped, you must provide at least 3 of these keys
-        to unseal it again.
-        
-        Vault does not store the master key. Without at least 3 keys, your
-        Vault will remain permanently sealed.
+            Key 1: b268aa9a3e1dad2f6a67624b05e480fb7f7cbda923419d026d509e9ecd2f25eb01
+            Key 2: 7c17ebb9c958ad9bfd01ac655f895a75cf1a5e8212a11ada1a24423f2b2fe69f02
+            Key 3: b06cdd9a85393cc97c8180ad45f994f63d891ff197b49b991e47bac8868970d803
+            Key 4: 48fe1eba938193b9fbe94ffb54771c22cb1323a477f46c1878743f7fde378a0804
+            Key 5: 84852899dfe002eb7a6963334e07d2a1398062d7f2e1ed5b7c17c78873911c4f05
+            Initial Root Token: f9ab89e6-f201-be0c-18bf-5d58b4c0da51
+            
+            Vault initialized with 5 keys and a key threshold of 3. Please
+            securely distribute the above keys. When the Vault is re-sealed,
+            restarted, or stopped, you must provide at least 3 of these keys
+            to unseal it again.
+            
+            Vault does not store the master key. Without at least 3 keys, your
+            Vault will remain permanently sealed.
     
     -   Unseal all the Vault pods
         
