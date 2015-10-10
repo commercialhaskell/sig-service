@@ -58,7 +58,7 @@ on for more on Consul & Vault]
     so that the rest of the cluster can figure out how to join one
     another.
 
-    Create the service with the example [yaml file](file://kube/consul-vault-svc.yaml).
+    Create the service with the example yaml file.
 
         kubectl create -f kube/consul-vault-svc.yaml
         kubectl get svc
@@ -83,8 +83,8 @@ on for more on Consul & Vault]
     won't have to re-deploy or upgrade our service so long as the
     ports aren't changed.
 
-    Now create the replication controller with the example [yaml file](file://kube/consul-vault-rc.yaml)
-    This will instantiate & supervise the required number of
+    Now create the replication controller with the example yaml
+    file. This will instantiate & supervise the required number of
     replicant pods.
 
         kubectl create -f kube/consul-vault-rc.yaml
