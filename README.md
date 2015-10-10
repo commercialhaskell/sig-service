@@ -144,11 +144,9 @@ on for more on Consul & Vault]
             kill $PORT_FORWARD_PID
         }
 
-    Let's set a few environment variables for Consul.
+    Set some variables for your shell.
 
-        # SET THE CONSUL/VAULT HTTP ADDR TO THE LOCALHOST PROXY PORT
-        CONSUL_HTTP_ADDR=127.0.0.1:8500
-        # SET THE CONSUL MASTER TOKEN (SEE ALSO THE KUBERNETES RC FILE)
+        # SET THE CONSUL MASTER TOKEN TO THE SAME UUID AS IN THE RC FILE
         CONSUL_ACL_MASTER_TOKEN=bba227cc-6ef8-11e5-a46b-4437e6b12281
 
 -   Configuring Consul
@@ -167,14 +165,6 @@ on for more on Consul & Vault]
                     http://127.0.0.1:8500/v1/kv/sig-service/ssh/private\?token\=$CONSUL_ACL_MASTER_TOKEN \
                     --data-binary @id_rsa \
             )
-
-    -   Create a new Consul key (for Vault)
-
-            # CREATE A NEW CONSUL MANAGEMENT TOKEN (FOR VAULT)
-            with-proxy consul 1 \
-                       consul-cli acl-create \
-                       --token=$CONSUL_ACL_MASTER_TOKEN \
-                       --management
 
 -   Configuring Vault
     -   Initialize Vault
@@ -220,7 +210,7 @@ on for more on Consul & Vault]
                     vault mount consul && \
                     vault write consul/config/access \
                           address=consul-vault.default.svc.cluster.local:8500 \
-                          token=<new-mgmnt-token-from-above> \
+                          token=$CONSUL_ACL_MASTER_TOKEN \
                 )
             done
 
