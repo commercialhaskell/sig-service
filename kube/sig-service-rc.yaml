@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: sig-service-0-0-1
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sig-service
+        ver: 0.0.1
+    spec:
+      containers:
+      - name: rdr2tls
+        image: dysinger/rdr2tls:0.1.1
+        command:
+        - rdr2tls
+        - --port
+        - "8080"
+        ports:
+        - name: http
+          containerPort: 8080
+        restartStrategy: always
+      - name: sig-service
+        image: dysinger/sig-service:0.0.1
+        env:
+        - name: CONSUL_HTTP_ADDR
+          value: http://consul-vault.default.svc.cluster.local:8500
+        - name: VAULT_ADDR
+          value: http://consul-vault.default.svc.cluster.local:8200
+        - name: VAULT_TOKEN
+          value: 3ca2b28b-4ee0-954f-d97b-9b4d182d3037
+        command:
+        - sig-service
+        - Testing
+        - --port
+        - "8443"
+        ports:
+        - name: https
+          containerPort: 8443
+        restartStrategy: always
