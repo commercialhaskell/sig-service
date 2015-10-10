@@ -47,11 +47,9 @@ on for more on Consul & Vault]
 
 -   Deploy Consul & Vault
     
-    Consul & Vault run best together on the same node. They fit the
-    2-peas-in-a-pod pattern of Kubernetes Pod deployments. Two
-    containers run best side-by-side.  The [Kubernetes service file](file://kube/consul-vault-svc.yaml)
-    has the details on what ports are open & the name of the
-    service.
+    Consul & Vault run best together on the same node. Two
+    containers run best side-by-side. They fit the 2-peas-in-a-pod
+    pattern of Kubernetes Pod deployments.
     
     It's important to create the service first even before we have
     any docker containers deployed.  Deploying the service first
@@ -60,7 +58,7 @@ on for more on Consul & Vault]
     so that the rest of the cluster can figure out how to join one
     another.
     
-    Create the Consul & Vault service as a 3 node cluster. 
+    Create the service with the example [yaml file](file://kube/consul-vault-svc.yaml).
     
         kubectl create -f kube/consul-vault-svc.yaml
         kubectl get svc
@@ -79,27 +77,31 @@ on for more on Consul & Vault]
         kubernetes     component=apiserver,provider=kubernetes   <none>             10.3.0.1    443/TCP
     
     Think of the service as a DNS entry with a load-balancer
-    entry-point. Notice the service does not have a version number in
-    it. The given SELECTOR (above) is used to decide where TCP
-    connections are routed in the cluster dynamically.  If we play
-    our cards right, we won't have to re-deploy the service part of
-    Consul & Vault ever again.
+    entry-point. Notice the service does not have a version number
+    in it. The given SELECTOR (above) is used to decide where TCP
+    connections are routed in the cluster dynamically.  We probably
+    won't have to re-deploy or upgrade our service so long as the
+    ports aren't changed.
     
-    Now create the replication controller (which will instantiate &
-    supervise the required number of replicant pods.)
+    Now create the replication controller with the example [yaml file](file://kube/consul-vault-rc.yaml)
+    This will instantiate & supervise the required number of
+    replicant pods.
     
         kubectl create -f kube/consul-vault-rc.yaml
     
-    List the replication controllers in your cluster.  You'll see
-    that the replication controller has a version number in it's
-    name.  This is so we can do rolling upgrades from one version to
-    the next. [More on upgrades later.]
+    List the replication controllers in your cluster.  
     
         kubectl get rc
     
         CONTROLLER           CONTAINER(S)   IMAGE(S)                SELECTOR                     REPLICAS
         consul-vault-0-0-1   consul         dysinger/consul-vault   app=consul-vault,ver=0.0.1   3
                              vault          dysinger/consul-vault
+    
+    You'll see that the replication controller has a version number
+    in it's name.  This is so we can \`kubectl rolling-upgrade\` from
+    one version to the next. As we are upgrading our service's
+    selector will match all the pods in the cluster (old version &
+    new).
     
     List the pods in your cluster.
     
