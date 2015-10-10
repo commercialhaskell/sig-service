@@ -159,10 +159,10 @@ on for more on Consul & Vault]
             # PUSH THE GITHUB SSH KEYS TO CONSUL
             with-proxy consul 1 (\
                 curl -v -X PUT \
-                    http://127.0.0.1:8500/v1/kv/sig-service/ssh/public\?token\=$CONSUL_ACL_MASTER_TOKEN \
+                    http://127.0.0.1:8500/v1/kv/sig_service/ssh/public\?token\=$CONSUL_ACL_MASTER_TOKEN \
                     --data-binary @id_rsa.pub; \
                 curl -v -X PUT \
-                    http://127.0.0.1:8500/v1/kv/sig-service/ssh/private\?token\=$CONSUL_ACL_MASTER_TOKEN \
+                    http://127.0.0.1:8500/v1/kv/sig_service/ssh/private\?token\=$CONSUL_ACL_MASTER_TOKEN \
                     --data-binary @id_rsa \
             )
 
