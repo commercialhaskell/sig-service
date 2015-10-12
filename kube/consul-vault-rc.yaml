@@ -56,6 +56,9 @@ spec:
           mountPath: /data
       - name: vault
         image: dysinger/vault:0.3.1
+        env:
+          - name: CONSUL_ACL_MASTER_TOKEN
+            value: bba227cc-6ef8-11e5-a46b-4437e6b12281
         ports:
         - name: vault
           containerPort: 8200
