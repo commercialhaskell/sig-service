@@ -17,7 +17,7 @@ spec:
           - name: CONSUL_ACL_MASTER_TOKEN
             value: bba227cc-6ef8-11e5-a46b-4437e6b12281
           - name: CONSUL_BOOTSTRAP_EXPECT
-            value: 3
+            value: "3"
           - name: CONSUL_ENCRYPT
             value: X58Yxgqiz/stKlFZBl0eFg==
           - name: CONSUL_RETRY_JOIN
