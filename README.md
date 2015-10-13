@@ -154,17 +154,6 @@ on for more on Consul & Vault]
             done
         }
 
-        # function exec-on {
-        #     CONTAINER=$1 ; shift
-        #     POD_INDEX=$1 ; shift
-        #     POD=$(kubectl get po -l app=consul-vault -o json \
-        #                  | jq -r '.items|.[]|.metadata.name' \
-        #                  | sed -n "${POD_INDEX}p")
-        #     kubectl exec $POD -c $CONTAINER -- $@
-        # }
-        # alias exec-on-consul="exec-on consul"
-        # alias exec-on-vault="exec-on vault"
-
     Set some variables for your shell.
 
         # SET ADDRESSES
@@ -258,3 +247,5 @@ on for more on Consul & Vault]
 
     kubectl create -f kube/sig-service-svc.yaml
     kubectl create -f kube/sig-service-rc.yaml
+
+-   Setup TLS on the ELB for port 443
