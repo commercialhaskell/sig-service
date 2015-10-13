@@ -24,6 +24,7 @@ spec:
       - name: sig-service
         image: dysinger/sig-service:0.0.1
         env:
+        # TODO: CONSUL_HTTP_ADDR & VAULT_ADDR & PORTS ARE ALREADY KUBE ENV VARS
         - name: CONSUL_HTTP_ADDR
           value: http://consul-vault.default.svc.cluster.local:8500
         - name: VAULT_ADDR
