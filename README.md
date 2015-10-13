@@ -128,26 +128,50 @@ on for more on Consul & Vault]
     consul/vault pods. This way we aren't repeating commands over
     and over.
 
-        function with-proxy {
+        function proxy-to {
             # SEPARATE FUNCTION ARGUMENTS FROM THE REST OF THE ARGS
-            POD_SEARCH=$1 ; shift
             POD_INDEX=$1 ; shift
             # RUN A PROXY TO THE $POD_INDEX-th POD THAT MATCHES $POD_SEARCH
-            kubectl port-forward \
-                    -p $(kubectl get po|grep $POD_SEARCH|cut -d' ' -f1|head -n $POD_INDEX) \
-                    8200 8300 8301 8302 8400 8500 8600 &
-            # TRACK THE PID OF THE PREVIOUS BACKGROUND KUBECTL COMMAND
-            PORT_FORWARD_PID=$!
+            POD=$(kubectl get po -l app=consul-vault -o json \
+                         | jq -r '.items|.[]|.metadata.name' \
+                         | sed -n "${POD_INDEX}p")
+            kubectl port-forward -p $POD 8200 8500 &
+            KUBECTL_PID=$!
+            # WAIT FOR AN API PORT TO BE OPEN
+            while ! nc -q 1 localhost 8200 </dev/null; do sleep 1; done
+            while ! nc -q 1 localhost 8500 </dev/null; do sleep 1; done
             # EXECUTE THE REST OF THE ARGS GIVEN TO THIS FUNCTION
             $@
             # KILL OFF THE BACKGROUND PORT-FORWARD KUBECTL COMMAND
-            kill $PORT_FORWARD_PID
+            kill $KUBECTL_PID
+            # WAIT FOR AN API PORT TO BE CLOSED
+            while nc -q 1 localhost 8500 </dev/null; do sleep 1; done
         }
+
+        function proxy-to-all {
+            for i in $(seq 3); do
+                proxy-to $i $@
+            done
+        }
+
+        # function exec-on {
+        #     CONTAINER=$1 ; shift
+        #     POD_INDEX=$1 ; shift
+        #     POD=$(kubectl get po -l app=consul-vault -o json \
+        #                  | jq -r '.items|.[]|.metadata.name' \
+        #                  | sed -n "${POD_INDEX}p")
+        #     kubectl exec $POD -c $CONTAINER -- $@
+        # }
+        # alias exec-on-consul="exec-on consul"
+        # alias exec-on-vault="exec-on vault"
 
     Set some variables for your shell.
 
-        # SET THE CONSUL MASTER TOKEN TO THE SAME UUID AS IN THE RC FILE
-        CONSUL_ACL_MASTER_TOKEN=bba227cc-6ef8-11e5-a46b-4437e6b12281
+        # SET ADDRESSES
+        export CONSUL_HTTP_ADDR=http://localhost:8500
+        export VAULT_ADDR=http://localhost:8200
+        # SET THE CONSUL MASTER TOKEN TO THE SAME UUID AS IN THE KUBE RC FILE
+        export CONSUL_ACL_MASTER_TOKEN=bba227cc-6ef8-11e5-a46b-4437e6b12281
 
 -   Configuring Consul
     -   Push SSH Keys for GitHub
@@ -156,27 +180,29 @@ on for more on Consul & Vault]
         time on github. Use \`ssh-keygen\` & upload to github if you
         don't have any existing keys setup.
 
-            # PUSH THE GITHUB SSH KEYS TO CONSUL
-            with-proxy consul 1 (
+            # SEND SIG-SERVICE GITHUB SSH KEYS TO CONSUL
+            function consul-ssh-keys {
                 curl -v -X PUT \
-                    http://127.0.0.1:8500/v1/kv/sig_service/ssh/public\?token\=$CONSUL_ACL_MASTER_TOKEN \
-                    --data-binary @id_rsa.pub
+                     http://127.0.0.1:8500/v1/kv/sig_service/ssh/private\?token\=$CONSUL_ACL_MASTER_TOKEN \
+                     --data-binary @id_rsa
                 curl -v -X PUT \
-                    http://127.0.0.1:8500/v1/kv/sig_service/ssh/private\?token\=$CONSUL_ACL_MASTER_TOKEN \
-                    --data-binary @id_rsa
-            )
+                     http://127.0.0.1:8500/v1/kv/sig_service/ssh/public\?token\=$CONSUL_ACL_MASTER_TOKEN \
+                     --data-binary @id_rsa.pub
+            }
+
+            alias consul-init='proxy-to 1 consul-ssh-keys'
 
 -   Configuring Vault
     -   Initialize Vault
 
-            with-proxy vault 1 vault init
+            alias vault-init='proxy-to 1 vault init'
 
-            Key 1: b268aa9a3e1dad2f6a67624b05e480fb7f7cbda923419d026d509e9ecd2f25eb01
-            Key 2: 7c17ebb9c958ad9bfd01ac655f895a75cf1a5e8212a11ada1a24423f2b2fe69f02
-            Key 3: b06cdd9a85393cc97c8180ad45f994f63d891ff197b49b991e47bac8868970d803
-            Key 4: 48fe1eba938193b9fbe94ffb54771c22cb1323a477f46c1878743f7fde378a0804
-            Key 5: 84852899dfe002eb7a6963334e07d2a1398062d7f2e1ed5b7c17c78873911c4f05
-            Initial Root Token: f9ab89e6-f201-be0c-18bf-5d58b4c0da51
+            Key 1: cb3e7a6f0f1476b9fe5bb445a38825ef76d88c4e2d9e67d770aaf0273fb7b71301
+            Key 2: 0469b49b201d82568724d32edea441647ef34d0beadbd4dab040c99c08ec262f02
+            Key 3: e1917ae3e2c4fcc448ce7e6e18a9f38151f228ec3c5a5009986a1c549116e59f03
+            Key 4: bb889effdf89c4c28af38cc9b82bb21ce82d193177d51d34457d89c4cb37c15104
+            Key 5: 5e7050871d50ba50451921897e2600f9c72c7cd6a15499e76d575c0c52cd02e105
+            Initial Root Token: f4a10d48-13b7-c347-cf25-69b855017697
 
             Vault initialized with 5 keys and a key threshold of 3. Please
             securely distribute the above keys. When the Vault is re-sealed,
@@ -191,47 +217,44 @@ on for more on Consul & Vault]
         You can't use Vault until you unseal every pod.  This requires
         that you enter 3 of the above keys on every pod.
 
-            for i in $(seq 3); do
-                with-proxy vault $i for j in $(seq 3); do vault unseal; done
-            done
+            alias vault-unseal="proxy-to-all vault unseal"
 
     -   Authenticate with Vault
 
         Authenticate with the Initial Root Token (taken from the
         output of the above \`vault init\` command).
 
-            with-proxy vault 1 vault auth
+            alias vault-auth="proxy-to 1 vault auth"
 
     -   Connect Vault to Consul
 
         Mounting & configuring Consul only works on the master Vault
-        pod.  We don't know which one that is so we'll just try them
-        all. The nodes that aren't master will just complain.  It
-        won't hurt anything.
+        pod.  If 1 isn't the master then try 2 or 3.
 
-            # CYCLE THROUGH ALL THE VAULT SERVERS & CONFIGURE CONSUL
-            for i in $(seq 3); do
-                with-proxy vault $i (
-                    vault mount consul
-                    vault write consul/config/access \
-                          address=consul-vault.default.svc.cluster.local:8500 \
-                          token=$CONSUL_ACL_MASTER_TOKEN
-                )
-            done
+            alias vault-mount-consul="proxy-to 1 vault mount consul"
+            alias vault-config-consul="proxy-to 1 vault write consul/config/access \
+                address=consul-vault.default.svc.cluster.local:8500 \
+                token=$CONSUL_ACL_MASTER_TOKEN"
 
-    -   Create a Policy for Consul access
+    -   Create a Policy for Consul K/V Access
 
-            # CREATE A VAULT POLICY FOR CONSUL GITHUB SSH KEYS
-            with-proxy vault 1 \
-                echo 'key "sig_service" { policy="read" }' \
-                    | base64 \
-                    | vault write consul/roles/sig_service policy=-
+            alias vault-acl="proxy-to 1 \
+                vault write consul/roles/sig_service \
+                    policy=\"$(base64 <(echo 'key \"sig_service\" { policy=\"read\" }'))\""
 
-        This will output a token which you can put into the
-        sig-service replication controller pod environment. (See the
-        kube/ files for sig-service)
+    -   Create a new Vault token for Sig-Service
+
+        This will output a token which you can put into the sig-service
+        replication controller pod environment. (See the kube/ files for
+        sig-service)
+
+            alias vault-token="proxy-to 1 vault token-create"
+
+### TODO Create an ACL for Vault users to access Consul Sig-Service
 
 ## Deploy Sig Service
+
+-   Deploy Sig-Service to Kubernetes
 
     kubectl create -f kube/sig-service-svc.yaml
     kubectl create -f kube/sig-service-rc.yaml
