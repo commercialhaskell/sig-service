@@ -108,47 +108,11 @@ metadata:
   name: consul
 type: Opaque
 data:
-  config.json: |
-    << base64 encoded consul.json config file goes here >>
-#
-# Example:
-#
-# base64 <<EOF
-# {
-#   "acl_datacenter": "fpco-dev-sandbox",
-#   "acl_default_policy": "deny",
-#   "acl_master_token": "49c6e1c4-720e-11e5-9c4e-4437e6b12281",
-#   "bootstrap_expect": 3,
-#   "ca_file": "/secret/ca.pem",
-#   "cert_file": "/secret/cert.pem",
-#   "client_addr": "0.0.0.0",
-#   "data_dir": "/data",
-#   "datacenter": "fpco-dev-sandbox",
-#   "encrypt": "UlmgEEF0uyR7U5g6Rrq2XQ==",
-#   "key_file": "/secret/key.pem",
-#   "log_level": "info",
-#   "ports": {
-#     "server": 8300,
-#     "serf_lan": 8301,
-#     "serf_wan": 8302,
-#     "rpc": 8400,
-#     "https": 8443,
-#     "dns": 8600,
-#     "http": -1
-#   }
-#   "retry_join": [ "consul.default.svc.cluster.local" ],
-#   "server": true,
-#   "server_name": "consul.default.svc.cluster.local",
-#   "ui_dir": "/ui",
-#   "verify_incoming": true,
-#   "verify_outgoing": true,
-#   "verify_server_hostname": true
-# }
-# EOF
-#
-  ca.pem: |
-    << base64 encoded server certificate goes here >>
-  cert.pem: |
-    << base64 encoded server certificate goes here >>
-  key.pem: |
-    << base64 encoded server key goes here >>
+  consul.json: |
+    << base64 encoded consul.json goes here >>
+  ca.cert: |
+    << base64 encoded pem file goes here >>
+  consul.cert: |
+    << base64 encoded pem file goes here >>
+  consul.key: |
+    << base64 encoded pem file goes here >>
