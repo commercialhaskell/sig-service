@@ -68,6 +68,7 @@ data Extra = Extra
     , extraRepoUrl :: String       -- ^ URL of sig-archive.
     , extraRepoPath :: String      -- ^ Path of directory in which to clone sig-archive.
     , extraRepoBranch :: String    -- ^ Branch of repo in which to use.
+    , extraRepoKeyPath :: String   -- ^ The path to the git repo ssh key
     } deriving Show
 
 parseExtra :: DefaultEnv -> Object -> Parser Extra
@@ -78,3 +79,4 @@ parseExtra _ o = Extra
     <*> o .: "repo-url"
     <*> o .: "repo-path"
     <*> o .: "repo-branch"
+    <*> o .: "repo-key-path"

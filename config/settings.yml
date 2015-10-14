@@ -7,6 +7,7 @@ Default: &defaults
   repo-url: git@github.com:commercialhaskell/sig-archive.git
   repo-path: /opt/sig-service/sig-archive
   repo-branch: master
+  repo-key-path: /opt/sig-service/secret/github.pem
 
 Development:
   pull-minutes: 1
@@ -14,15 +15,17 @@ Development:
   <<: *defaults
 
 Testing:
+# approot: "https://sig-test.commercialhaskell.org"
   pull-minutes: 5
   repo-branch: test
   <<: *defaults
 
 Staging:
+# approot: "https://sig-staging.commercialhaskell.org"
   pull-minutes: 10
   repo-branch: test
   <<: *defaults
 
 Production:
-  #approot: "http://www.example.com"
+# approot: "https://sig.commercialhaskell.org"
   <<: *defaults
