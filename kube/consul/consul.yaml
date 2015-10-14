@@ -32,10 +32,10 @@ spec:
     port: 8400
     protocol: TCP
     targetPort: rpc
-  - name: http
-    port: 8500
+  - name: https
+    port: 8443
     protocol: TCP
-    targetPort: http
+    targetPort: https
   - name: dns
     port: 8600
     protocol: TCP
@@ -80,8 +80,8 @@ spec:
         - name: rpc
           containerPort: 8400
           protocol: TCP
-        - name: http
-          containerPort: 8500
+        - name: https
+          containerPort: 8443
           protocol: TCP
         - name: dns
           containerPort: 8600
