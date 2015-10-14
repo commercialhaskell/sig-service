@@ -112,7 +112,7 @@ data:
     << base64 encoded consul.json goes here >>
   ca.cert: |
     << base64 encoded pem file goes here >>
-  consul.cert: |
+  cluster.cert: |
     << base64 encoded pem file goes here >>
-  consul.key: |
+  cluster.key: |
     << base64 encoded pem file goes here >>
