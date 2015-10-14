@@ -1,0 +1,154 @@
+# Kubernetes
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul
+  labels:
+    app: consul
+spec:
+  ports:
+  - name: server
+    port: 8300
+    protocol: TCP
+    targetPort: server
+  - name: serf-lan
+    port: 8301
+    protocol: TCP
+    targetPort: serf-lan
+  - name: serf-lan-udp
+    port: 8301
+    protocol: UDP
+    targetPort: serf-lan-udp
+  - name: serf-wan
+    port: 8302
+    protocol: TCP
+    targetPort: serf-wan
+  - name: serf-wan-udp
+    port: 8302
+    protocol: UDP
+    targetPort: serf-wan-udp
+  - name: rpc
+    port: 8400
+    protocol: TCP
+    targetPort: rpc
+  - name: http
+    port: 8500
+    protocol: TCP
+    targetPort: http
+  - name: dns
+    port: 8600
+    protocol: TCP
+    targetPort: dns
+  - name: dns-udp
+    port: 8600
+    protocol: UDP
+    targetPort: dns-udp
+  selector:
+    app: consul
+---
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: consul
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: consul
+    spec:
+      containers:
+      - name: consul
+        image: dysinger/consul:0.5.2
+        ports:
+        - name: server
+          containerPort: 8300
+          protocol: TCP
+        - name: serf-lan
+          containerPort: 8301
+          protocol: TCP
+        - name: serf-lan-udp
+          containerPort: 8301
+          protocol: UDP
+        - name: serf-wan
+          containerPort: 8302
+          protocol: TCP
+        - name: serf-wan-udp
+          containerPort: 8302
+          protocol: UDP
+        - name: rpc
+          containerPort: 8400
+          protocol: TCP
+        - name: http
+          containerPort: 8500
+          protocol: TCP
+        - name: dns
+          containerPort: 8600
+          protocol: TCP
+        - name: dns-udp
+          containerPort: 8600
+          protocol: UDP
+        restartStrategy: always
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: secret
+          mountPath: /secret
+      volumes:
+      - name: data
+        emptyDir: {}
+      - name: secret
+        secret:
+          secretName: consul
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: consul
+type: Opaque
+data:
+  config.json: |
+    << base64 encoded consul.json config file goes here >>
+#
+# Example:
+#
+# base64 <<EOF
+# {
+#   "acl_datacenter": "fpco-dev-sandbox",
+#   "acl_default_policy": "deny",
+#   "acl_master_token": "49c6e1c4-720e-11e5-9c4e-4437e6b12281",
+#   "bootstrap_expect": 3,
+#   "ca_file": "/secret/ca.pem",
+#   "cert_file": "/secret/cert.pem",
+#   "client_addr": "0.0.0.0",
+#   "data_dir": "/data",
+#   "datacenter": "fpco-dev-sandbox",
+#   "encrypt": "UlmgEEF0uyR7U5g6Rrq2XQ==",
+#   "key_file": "/secret/key.pem",
+#   "log_level": "info",
+#   "ports": {
+#     "server": 8300,
+#     "serf_lan": 8301,
+#     "serf_wan": 8302,
+#     "rpc": 8400,
+#     "https": 8443,
+#     "dns": 8600,
+#     "http": -1
+#   }
+#   "retry_join": [ "consul.default.svc.cluster.local" ],
+#   "server": true,
+#   "server_name": "consul.default.svc.cluster.local",
+#   "ui_dir": "/ui",
+#   "verify_incoming": true,
+#   "verify_outgoing": true,
+#   "verify_server_hostname": true
+# }
+# EOF
+#
+  ca.pem: |
+    << base64 encoded server certificate goes here >>
+  cert.pem: |
+    << base64 encoded server certificate goes here >>
+  key.pem: |
+    << base64 encoded server key goes here >>
