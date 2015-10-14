@@ -31,3 +31,10 @@ spec:
         - name: https
           containerPort: 8443
         restartStrategy: always
+        volumeMounts:
+        - name: secret
+          mountPath: /opt/sig-service/secret
+      volumes:
+      - name: secret
+        secret:
+          secretName: sig-service
