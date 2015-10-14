@@ -1,0 +1,60 @@
+# Kubernetes
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  labels:
+    app: vault
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+  selector:
+    app: vault
+---
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: vault
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      containers:
+      - name: vault
+        image: dysinger/vault:0.3.1
+        ports:
+        - name: https
+          containerPort: 8443
+          protocol: TCP
+        restartStrategy: always
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: secret
+          mountPath: /secret
+      volumes:
+      - name: data
+        emptyDir: {}
+      - name: secret
+        secret:
+          secretName: vault
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vault
+type: Opaque
+data:
+  vault.hcl: |
+    << base64 encoded vault.hcl goes here >>
+  vault.cert: |
+    << base64 encoded pem file goes here >>
+  vault.key: |
+    << base64 encoded pem file goes here >>
