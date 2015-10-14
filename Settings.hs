@@ -68,7 +68,6 @@ data Extra = Extra
     , extraRepoUrl :: String       -- ^ URL of sig-archive.
     , extraRepoPath :: String      -- ^ Path of directory in which to clone sig-archive.
     , extraRepoBranch :: String    -- ^ Branch of repo in which to use.
-    , extraCacheDir :: FilePath    -- ^ Directory of cache files.
     } deriving Show
 
 parseExtra :: DefaultEnv -> Object -> Parser Extra
@@ -79,4 +78,3 @@ parseExtra _ o = Extra
     <*> o .: "repo-url"
     <*> o .: "repo-path"
     <*> o .: "repo-branch"
-    <*> o .: "cache-dir"

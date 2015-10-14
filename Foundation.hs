@@ -30,7 +30,6 @@ data App = App
     , getStatic :: Static -- ^ Settings for static file serving.
     , httpManager :: Manager
     , appLogger :: Logger
-    , appCacheDir :: MVar FilePath
     }
 
 instance HasHttpManager App where

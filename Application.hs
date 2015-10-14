@@ -93,11 +93,9 @@ makeFoundation conf = do
 
     loggerSet' <- newStdoutLoggerSet defaultBufSize
     (getter, _) <- clockDateCacher
-    cache <- newMVar (extraCacheDir (appExtra conf))
-    createDirectoryIfMissing True (extraCacheDir (appExtra conf))
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
-        foundation = App conf s manager logger cache
+        foundation = App conf s manager logger
 
     return foundation
 
