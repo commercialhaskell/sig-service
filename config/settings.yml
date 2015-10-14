@@ -5,7 +5,7 @@ Default: &defaults
   copyright: Insert copyright statement here
   pull-minutes: 30
   repo-url: git@github.com:commercialhaskell/sig-archive.git
-  repo-path: sig-archive
+  repo-path: /opt/sig-service/sig-archive
   repo-branch: master
 
 Development:
