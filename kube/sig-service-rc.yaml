@@ -1,14 +1,13 @@
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: sig-service-0-0-1
+  name: sig-service
 spec:
   replicas: 1
   template:
     metadata:
       labels:
         app: sig-service
-        ver: 0.0.1
     spec:
       containers:
       - name: rdr2tls
