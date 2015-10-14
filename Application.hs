@@ -112,58 +112,28 @@ getApplicationDev =
 gitAddCommitPullPush :: forall (m :: * -> *).
                         (MonadBaseControl IO m,MonadCatch m,MonadMask m,MonadLogger m,MonadIO m,Functor m)
                      => Extra -> m Void
-gitAddCommitPullPush extra@Extra{..} =
-  do homeEnv <- liftIO (E.getEnv "HOME")
-     homePath <- parseAbsDir homeEnv
-     let sshKeyPath =
-           homePath </>
-           $(mkRelDir ".ssh") </>
-           $(mkRelFile "id_rsa_sig_archive")
-         name = "Sig Service"
-         email = "dev@fpcomplete.com"
-         gitEnv =
-           Just [("HOME",homeEnv)
-                ,("GIT_SSH_COMMAND"
-                 ,"ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i " ++
-                  toFilePath sshKeyPath)
-                ,("GIT_CONFIG_NOSYSTEM","1")
-                ,("GIT_AUTHOR_NAME",name)
-                ,("GIT_AUTHOR_EMAIL",email)
-                ,("GIT_COMMITTER_NAME",name)
-                ,("GIT_COMMITTER_EMAIL",email)]
-     mVaultRes <- fetchVaultAcl
-     case mVaultRes of
-       Nothing ->
-         $logError "Can't retrieve vault acl for sig-archive git ssh key"
-       Just acl ->
-         do mConsulRes <- fetchConsulKV acl
-            case mConsulRes of
-              Nothing ->
-                $logError "Can't retrieve sig-service git ssh key from consul"
-              Just (ssh:_) ->
-                case (B64.decode . T.encodeUtf8) (ckrValue ssh) of
-                  Left err ->
-                    $logError (T.pack ("Can't extract sig-service git ssh key received from consul: " ++
-                                       err))
-                  Right ssh' ->
-                    bracket (writeSshKey sshKeyPath ssh')
-                            (const (liftIO (removeFile (toFilePath sshKeyPath))))
-                            (const (do gitClone extra gitEnv
-                                       gitAddAndCommit extra gitEnv
-                                       gitPullAndPush extra gitEnv))
-     liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
-     gitAddCommitPullPush extra
-
-writeSshKey :: forall (m :: * -> *).
-               (MonadCatch m,MonadLogger m,MonadIO m)
-            => Path Abs File -> ByteString -> m ()
-writeSshKey path key =
-  let dir = toFilePath (parent path)
-  in liftIO (do createDirectoryIfMissing True dir
-                setFileMode dir ownerModes
-                BC.writeFile (toFilePath path) key
-                setFileMode (toFilePath path)
-                            (unionFileModes ownerReadMode ownerWriteMode))
+gitAddCommitPullPush extra@Extra{..} = do
+    let name = "Sig Service"
+        email = "dev@fpcomplete.com"
+        gitEnv =
+            Just
+                [ ( "GIT_SSH_COMMAND"
+                  , "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i " ++
+                    extraRepoKeyPath)
+                , ("GIT_CONFIG_NOSYSTEM", "1")
+                , ("GIT_AUTHOR_NAME", name)
+                , ("GIT_AUTHOR_EMAIL", email)
+                , ("GIT_COMMITTER_NAME", name)
+                , ("GIT_COMMITTER_EMAIL", email)]
+    liftIO (setFileMode extraRepoKeyPath ownerReadMode)
+    loop extra gitEnv
+  where
+    loop extra gitEnv = do
+        gitClone extra gitEnv
+        gitAddAndCommit extra gitEnv
+        gitPullAndPush extra gitEnv
+        liftIO (threadDelay (1000 * 1000 * 60 * extraPullMinutes))
+        loop extra gitEnv
 
 gitClone :: forall (m :: * -> *).
             (MonadCatch m,MonadLogger m,MonadIO m,Functor m)
@@ -217,86 +187,3 @@ gitPullAndPush Extra{..} gitEnv =
       void (liftIO (waitForProcess push))) `catches`
   [Handler (\ex ->
               $logError (fromString (show (ex :: IOError))))]
-
--- | Fetches the Vault credentials lease for the Consul SSH private
--- key secret.
-fetchVaultAcl :: forall (m :: * -> *).
-                 (MonadBaseControl IO m,MonadIO m,MonadThrow m)
-              => m (Maybe VaultLeaseResponse)
-fetchVaultAcl =
-  do vaultAddr <- liftIO (E.getEnv "VAULT_ADDR")
-     vaultToken <-
-       liftIO (E.getEnv "VAULT_TOKEN")
-     vaultReq <-
-       HC.parseUrl (vaultAddr ++ "/v1/consul/creds/sig_service")
-     let vaultReq' =
-           vaultReq {requestHeaders =
-                       [("X-Vault-Token",BC.pack vaultToken)]}
-     vaultRes <-
-       HC.withManager (HC.httpLbs vaultReq')
-     return (A.decode (HC.responseBody vaultRes))
-
--- | Fetches the SSH private key from Consul using the given Vault
--- credentials lease.
-fetchConsulKV :: forall (m :: * -> *).
-                 (MonadBaseControl IO m,MonadIO m,MonadThrow m)
-              => VaultLeaseResponse -> m (Maybe [ConsulKVResponse])
-fetchConsulKV vlr =
-  do consulAddr <-
-       liftIO (E.getEnv "CONSUL_HTTP_ADDR")
-     consulReq <-
-       HC.parseUrl (consulAddr ++ "/v1/kv/sig_service/ssh/private")
-     let consulReq' =
-           HC.setQueryString
-             [(T.encodeUtf8 "token"
-              ,Just (T.encodeUtf8 (vlrDataToken (vlrData vlr))))]
-             consulReq
-     consulRes <-
-       HC.withManager (HC.httpLbs consulReq')
-     return (A.decode (HC.responseBody consulRes))
-
-data VaultLeaseResponse =
-  VaultLeaseResponse {vlrId :: !Text
-                     ,vlrDuration :: Int
-                     ,vlrRenewable :: Bool
-                     ,vlrData :: !VaultLeaseResponseData}
-  deriving (Show)
-
-data VaultLeaseResponseData =
-  VaultLeaseResponseData {vlrDataToken :: !Text}
-  deriving (Show)
-
-instance FromJSON VaultLeaseResponse where
-  parseJSON (Object v) =
-    VaultLeaseResponse <$>
-    (v .: "lease_id") <*>
-    (v .: "lease_duration") <*>
-    (v .: "renewable") <*>
-    (v .: "data")
-  parseJSON _ = mzero
-
-instance FromJSON VaultLeaseResponseData where
-  parseJSON (Object v) =
-    VaultLeaseResponseData <$>
-    (v .: "token")
-  parseJSON _ = mzero
-
-data ConsulKVResponse =
-  ConsulKVResponse {ckrKey :: Text
-                   ,ckrCreateIndex :: Int
-                   ,ckrModifyIndex :: Int
-                   ,ckrLockIndex :: Int
-                   ,ckrFlags :: Int
-                   ,ckrValue :: Text}
-  deriving (Show)
-
-instance FromJSON ConsulKVResponse where
-  parseJSON (Object v) =
-    ConsulKVResponse <$>
-    (v .: "Key") <*>
-    (v .: "CreateIndex") <*>
-    (v .: "ModifyIndex") <*>
-    (v .: "LockIndex") <*>
-    (v .: "Flags") <*>
-    (v .: "Value")
-  parseJSON _ = mzero
