@@ -1,33 +1,16 @@
 # Kubernetes
 ---
 apiVersion: v1
-kind: Service
-metadata:
-  name: sig-service
-  labels:
-    app: sig-service
-spec:
-  ports:
-  - name: http
-    port: 80
-    targetPort: http
-  - name: https
-    port: 443
-    targetPort: https
-  selector:
-    app: sig-service
-  type: LoadBalancer
----
-apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: sig-service
+  name: sig-service-prod-v0
 spec:
   replicas: 2
   template:
     metadata:
       labels:
-        app: sig-service
+        app: sig-service-prod
+        version: v0
     spec:
       containers:
       - name: rdr2tls
@@ -39,9 +22,9 @@ spec:
         ports:
         - name: http
           containerPort: 8080
-        restartStrategy: always
       - name: sig-service
-        image: dysinger/sig-service:0.0.1
+        image: commercialhaskell/sig-service:prod
+        imagePullPolicy: Always
         command:
         - sig-service
         - Testing
@@ -50,20 +33,10 @@ spec:
         ports:
         - name: https
           containerPort: 8443
-        restartStrategy: always
         volumeMounts:
         - name: secret
           mountPath: /opt/sig-service/secret
       volumes:
       - name: secret
         secret:
-          secretName: sig-service
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: sig-service
-type: Opaque
-data:
-  github.pem: |
-    << base64 encoded github private ssh key goes here >>
+          secretName: sig-service-prod

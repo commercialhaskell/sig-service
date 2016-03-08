@@ -8,10 +8,10 @@ ENV DEBIAN_FRONTEND noninteractive
 
 # OPTIONAL: SET UP APT-CACHER USE (REQUIRES RUNNING APT-CACHER-NG ON
 # YOUR DOCKER HOST). THIS MAKES REPEATED RE-BUILDS MUCH FASTER.
-RUN apt-get update \
- && apt-get install -y net-tools
-RUN echo "Acquire::http { Proxy \"http://$(netstat -nr|grep '^0\.0\.0\.0'|awk '{print $2}'):3142\"; };" \
-  | tee /etc/apt/apt.conf.d/02proxy
+#RUN apt-get update \
+# && apt-get install -y net-tools
+#RUN echo "Acquire::http { Proxy \"http://$(netstat -nr|grep '^0\.0\.0\.0'|awk '{print $2}'):3142\"; };" \
+#  | tee /etc/apt/apt.conf.d/02proxy
 
 # INSTALL SOME BASIC THINGS WE NEED FOR NETWORKING
 RUN apt-get update && apt-get install -y netbase ca-certificates
